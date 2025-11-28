@@ -19,8 +19,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // CORS middleware
 app.use(cors({
   origin: [
-    'http://localhost:3000',           // Local development
-    'https://ilmioadmin.onrender.com'  // Production admin panel
+    'http://localhost:3000',          // Local development
+    'https://ilmioadmin.onrender.com' // Production admin panel
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],

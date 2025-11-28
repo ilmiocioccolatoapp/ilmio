@@ -43,7 +43,7 @@ This method deploys both backend and admin panel automatically.
 
    For **ilmio-admin** service, add:
    ```
-   REACT_APP_API_URL=https://ilmio-backend.onrender.com/api
+   REACT_APP_API_URL=https://ilmiobackend.onrender.com/api
    ```
    *(Replace with your actual backend URL after deployment)*
 
@@ -82,7 +82,7 @@ This method deploys both backend and admin panel automatically.
 
 3. **Deploy**
    - Click "Create Web Service"
-   - Note the URL: `https://ilmio-backend.onrender.com`
+   - Note the URL: `https://ilmiobackend.onrender.com`
 
 ### Deploy Admin Panel
 
@@ -98,13 +98,13 @@ This method deploys both backend and admin panel automatically.
 
 2. **Add Environment Variable**
    ```
-   REACT_APP_API_URL=https://ilmio-backend.onrender.com/api
+   REACT_APP_API_URL=https://ilmiobackend.onrender.com/api
    ```
    *(Use your actual backend URL)*
 
 3. **Deploy**
    - Click "Create Static Site"
-   - Note the URL: `https://ilmio-admin.onrender.com`
+   - Note the URL: `https://ilmioadmin.onrender.com`
 
 ## Post-Deployment Steps
 
@@ -117,14 +117,14 @@ This method deploys both backend and admin panel automatically.
 ### 2. Update Mobile App
 Update the API URL in `/mobile/lib/utils/constants.dart`:
 ```dart
-static const String baseUrl = 'https://ilmio-backend.onrender.com/api';
+static const String baseUrl = 'https://ilmiobackend.onrender.com/api';
 ```
 
 ### 3. Test the Deployment
 
 1. **Test Backend API**
    ```bash
-   curl https://ilmio-backend.onrender.com/api/products/available
+   curl https://ilmiobackend.onrender.com/api/products/available
    ```
 
 2. **Test Admin Panel**
@@ -158,7 +158,7 @@ The backend is configured to accept requests from any origin (`origin: '*'`). Fo
 
 ```javascript
 app.use(cors({
-  origin: ['https://ilmio-admin.onrender.com'],
+  origin: ['https://ilmioadmin.onrender.com'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
