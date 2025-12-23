@@ -24,10 +24,11 @@ class ApiService {
           'Content-Type': 'application/json',
         },
       ).timeout(
-        const Duration(seconds: 10),
+        const Duration(
+            seconds: 60), // Extra long timeout for Render free tier wake-up
         onTimeout: () {
           throw Exception(
-              'Connection timeout. Please check your internet connection.');
+              'Server is waking up (free tier). Please wait and pull down to refresh again.');
         },
       );
 
@@ -49,8 +50,10 @@ class ApiService {
       }
     } catch (e) {
       if (e.toString().contains('SocketException') ||
-          e.toString().contains('NetworkException')) {
-        throw Exception('No internet connection. Please check your network.');
+          e.toString().contains('NetworkException') ||
+          e.toString().contains('Failed host lookup')) {
+        throw Exception(
+            'Cannot connect to server. The backend may be sleeping (free tier takes 30-60 seconds to wake up). Pull down to refresh and try again.');
       }
       rethrow;
     }
@@ -204,6 +207,17 @@ class ApiService {
   }
 
   Future<List<Map<String, dynamic>>> fetchCategories() async {
+    // Return mock data if flag is enabled
+    if (useMockData) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      return [
+        {'id': 'pastries', 'name': 'Pastries', 'icon': '🥐', 'order': 1},
+        {'id': 'drinks', 'name': 'Drinks', 'icon': '☕', 'order': 2},
+        {'id': 'desserts', 'name': 'Desserts', 'icon': '🍰', 'order': 3},
+        {'id': 'specialties', 'name': 'Specialties', 'icon': '⭐', 'order': 4},
+      ];
+    }
+
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/categories'),
@@ -211,9 +225,10 @@ class ApiService {
           'Content-Type': 'application/json',
         },
       ).timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 60), // Increased timeout for Render free tier
         onTimeout: () {
-          throw Exception('Connection timeout');
+          throw Exception(
+              'Server is waking up. Please try again in 30 seconds.');
         },
       );
 
@@ -228,6 +243,12 @@ class ApiService {
         throw Exception('Failed to load categories');
       }
     } catch (e) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('NetworkException') ||
+          e.toString().contains('Failed host lookup')) {
+        throw Exception(
+            'Cannot connect to server. Backend may be sleeping. Pull to refresh and try again.');
+      }
       rethrow;
     }
   }

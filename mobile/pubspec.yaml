@@ -1,7 +1,7 @@
 name: il_mio_cioccolato
 description: Il Mio Cioccolato - Mobile Gallery App
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -18,6 +18,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "icon.png"
+  adaptive_icon_background: "#8B4513"
+  adaptive_icon_foreground: "icon.png"
 
 flutter:
   uses-material-design: true

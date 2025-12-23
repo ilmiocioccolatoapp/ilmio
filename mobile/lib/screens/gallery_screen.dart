@@ -169,43 +169,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Widget _buildMainContent(bool isTablet) {
-    if (isTablet) {
-      // Tablet layout - side by side
-      return SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: SizedBox(
-          height:
-              MediaQuery.of(context).size.height - _getHeaderHeight(isTablet),
-          child: Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: Column(
-                  children: [
-                    const SizedBox(height: 12),
-                    _buildCategoryButtons(isTablet),
-                    const SizedBox(height: 12),
-                    if (_filteredProducts.isEmpty)
-                      Expanded(child: _buildEmptyState())
-                    else
-                      Expanded(child: _buildGalleryContainer(isTablet)),
-                  ],
-                ),
-              ),
-              if (_filteredProducts.isNotEmpty)
-                SizedBox(
-                  width: 400,
-                  child: SingleChildScrollView(
-                    child: _buildFoodInfo(isTablet),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // Phone layout - stacked
+    // Both tablet and phone use same stacked layout
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       child: SizedBox(
