@@ -42,15 +42,21 @@ body {
 .app-header {
   background: white;
   color: var(--dark);
-  padding: 15px 30px;
+  padding: 10px 0;
   box-shadow: var(--shadow-sm);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   position: sticky;
   top: 0;
   z-index: 100;
   border-bottom: 3px solid var(--accent);
+}
+
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .logo {
@@ -65,6 +71,7 @@ body {
   font-weight: 700;
   background: linear-gradient(45deg, var(--primary), var(--secondary));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.5px;
 }

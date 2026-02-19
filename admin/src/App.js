@@ -54,9 +54,11 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <div className="logo">
-          <span style={{ fontSize: '2rem' }}>👑</span>
-          <h1>Il Mio Cioccolato - Admin Panel</h1>
+        <div className="header-inner">
+          <div className="logo">
+            <span style={{ fontSize: '2rem' }}>👑</span>
+            <h1>Il Mio Cioccolato - Admin Panel</h1>
+          </div>
         </div>
       </header>
 

@@ -26,4 +26,10 @@ class AppConstants {
   // App Branding
   static const String appName = 'Il mio cioccolato';
   static const String appTagline = 'Artisan Chocolate & Pastries';
+
+  // Image sizes (pixels) - landscape-oriented recommendations
+  // Targeted for tablet landscape (e.g. Samsung Tab A7 2000x1200)
+  static const int imageLandscapeHeroWidth = 1600; // full-bleed / hero
+  static const int imageLandscapeCardWidth = 1000; // card / detail
+  static const int imageLandscapeThumbWidth = 600; // thumbnails / lists
 }

@@ -16,6 +16,10 @@ const productSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please add an image URL']
   },
+  imagePublicId: {
+    type: String,
+    required: false
+  },
   description: {
     type: String,
     required: [true, 'Please add a description'],

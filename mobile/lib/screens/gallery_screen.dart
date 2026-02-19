@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/product.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../utils/image_utils.dart';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
@@ -17,6 +18,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
   final ApiService _apiService = ApiService();
   final PageController _pageController = PageController();
   Timer? _autoAdvanceTimer;
+  Timer? _collapseCategoriesTimer;
+  bool _showCategories = false;
 
   List<Product> _allProducts = [];
   List<Product> _filteredProducts = [];
@@ -36,6 +39,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
   void dispose() {
     _pageController.dispose();
     _autoAdvanceTimer?.cancel();
+    _collapseCategoriesTimer?.cancel();
     super.dispose();
   }
 
@@ -110,6 +114,19 @@ class _GalleryScreenState extends State<GalleryScreen> {
       _pageController.jumpToPage(0);
     }
     _startAutoAdvance();
+
+    // Ensure categories are visible when user selects one, then auto-collapse
+    setState(() {
+      _showCategories = true;
+    });
+    _collapseCategoriesTimer?.cancel();
+    _collapseCategoriesTimer = Timer(const Duration(milliseconds: 1400), () {
+      if (mounted) {
+        setState(() {
+          _showCategories = false;
+        });
+      }
+    });
   }
 
   void _navigateToPage(int index) {
@@ -165,11 +182,15 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   double _getHeaderHeight(bool isTablet) {
-    return MediaQuery.of(context).padding.top + (isTablet ? 72 : 52);
+    return MediaQuery.of(context).padding.top + (isTablet ? 56 : 44);
   }
 
   Widget _buildMainContent(bool isTablet) {
-    // Both tablet and phone use same stacked layout
+    // Support both stacked layout (portrait) and side-by-side (landscape)
+    final isLandscape = MediaQuery.of(context).orientation ==
+            Orientation.landscape ||
+        MediaQuery.of(context).size.width > MediaQuery.of(context).size.height;
+
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       child: SizedBox(
@@ -181,6 +202,25 @@ class _GalleryScreenState extends State<GalleryScreen> {
             const SizedBox(height: 12),
             if (_filteredProducts.isEmpty)
               Expanded(child: _buildEmptyState())
+            else if (isLandscape)
+              // Side-by-side layout: gallery left, info right
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(flex: 2, child: _buildGalleryContainer(isTablet)),
+                    Expanded(
+                      flex: 1,
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Padding(
+                          padding: EdgeInsets.all(isTablet ? 16 : 12),
+                          child: _buildFoodInfo(isTablet),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
             else
               Expanded(
                 child: Column(
@@ -199,10 +239,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
   Widget _buildHeader(bool isTablet) {
     return Container(
       padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + (isTablet ? 12 : 8),
-        bottom: isTablet ? 20 : 12,
-        left: isTablet ? 40 : 20,
-        right: isTablet ? 40 : 20,
+        top: MediaQuery.of(context).padding.top + (isTablet ? 8 : 6),
+        bottom: isTablet ? 12 : 8,
+        left: isTablet ? 24 : 12,
+        right: isTablet ? 24 : 12,
       ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -215,29 +255,49 @@ class _GalleryScreenState extends State<GalleryScreen> {
         ),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.restaurant_menu,
-            color: const Color(AppConstants.goldAccentValue),
-            size: isTablet ? 32 : 22,
-          ),
-          SizedBox(width: isTablet ? 12 : 8),
-          Text(
-            AppConstants.appName,
-            style: TextStyle(
-              fontSize: isTablet ? 28 : 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: 0.5,
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.restaurant_menu,
+                  color: const Color(AppConstants.goldAccentValue),
+                  size: isTablet ? 28 : 18,
+                ),
+                SizedBox(width: isTablet ? 10 : 6),
+                Text(
+                  AppConstants.appName,
+                  style: TextStyle(
+                    fontSize: isTablet ? 24 : 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.coffee,
+                  color: Color(AppConstants.goldAccentValue),
+                  size: 20,
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-          const Icon(
-            Icons.coffee,
-            color: Color(AppConstants.goldAccentValue),
-            size: 22,
-          ),
+          // Toggle categories on small screens; keep hidden on tablets
+          if (!isTablet)
+            IconButton(
+              icon: Icon(
+                _showCategories ? Icons.expand_less : Icons.expand_more,
+                color: Colors.white,
+              ),
+              onPressed: () {
+                _collapseCategoriesTimer?.cancel();
+                setState(() {
+                  _showCategories = !_showCategories;
+                });
+              },
+            ),
         ],
       ),
     );
@@ -248,9 +308,12 @@ class _GalleryScreenState extends State<GalleryScreen> {
       return const SizedBox.shrink();
     }
 
+    final showCategories = isTablet || _showCategories;
+    if (!showCategories) return const SizedBox.shrink();
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: EdgeInsets.symmetric(horizontal: isTablet ? 40 : 20),
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 24 : 12),
       child: Row(
         children: _categories.map((category) {
           final categoryId = category['id'] as String;
@@ -259,20 +322,20 @@ class _GalleryScreenState extends State<GalleryScreen> {
           final isActive = categoryId == _selectedCategory;
 
           return Padding(
-            padding: EdgeInsets.only(right: isTablet ? 16 : 12),
+            padding: EdgeInsets.only(right: isTablet ? 12 : 8),
             child: GestureDetector(
               onTap: () => _filterByCategory(categoryId),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 padding: EdgeInsets.symmetric(
-                  horizontal: isTablet ? 28 : 20,
-                  vertical: isTablet ? 14 : 10,
+                  horizontal: isTablet ? 20 : 14,
+                  vertical: isTablet ? 10 : 8,
                 ),
                 decoration: BoxDecoration(
                   color: isActive
                       ? const Color(AppConstants.primaryColorValue)
                       : const Color(0xFFE8D0B3),
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(24),
                   boxShadow: isActive
                       ? [
                           BoxShadow(
@@ -291,7 +354,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         ? Colors.white
                         : const Color(AppConstants.darkBrownValue),
                     fontWeight: FontWeight.w600,
-                    fontSize: isTablet ? 16 : 14,
+                    fontSize: isTablet ? 14 : 13,
                   ),
                 ),
               ),
@@ -389,8 +452,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Widget _buildMainImage(Product product) {
+    final imageUrl = getSizedImageUrl(product.image, context);
+
     return CachedNetworkImage(
-      imageUrl: product.image,
+      imageUrl: imageUrl,
       fit: BoxFit.cover,
       placeholder: (context, url) => Container(
         color: const Color(AppConstants.darkBrownValue).withValues(alpha: 0.1),

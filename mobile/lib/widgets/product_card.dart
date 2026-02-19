@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/product.dart';
 import '../utils/constants.dart';
+import '../utils/image_utils.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -46,8 +47,10 @@ class ProductCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
+                    final imgUrl = getSizedImageUrl(product.image, context);
+
                     CachedNetworkImage(
-                      imageUrl: product.image,
+                      imageUrl: imgUrl,
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Container(
                         color: const Color(AppConstants.darkBrownValue)
