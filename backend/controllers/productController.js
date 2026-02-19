@@ -1,6 +1,28 @@
 const Product = require('../models/Product');
 const cloudinary = require('cloudinary').v2;
 
+// Helper: extract public id from a Cloudinary URL when filename/public_id not provided
+function _extractPublicIdFromUrl(url) {
+  try {
+    const idx = url.indexOf('/upload/');
+    if (idx === -1) return null;
+    let after = url.substring(idx + 8); // after '/upload/'
+    // remove any transformation segments (contain ',') and version like v123
+    // split by '/' and find the segment that looks like a public id with extension
+    const parts = after.split('/');
+    // drop version if present
+    if (parts.length > 1 && parts[0].startsWith('v') && /^v\d+$/.test(parts[0])) {
+      parts.shift();
+    }
+    const last = parts.join('/');
+    // remove extension
+    const dotIdx = last.lastIndexOf('.');
+    return dotIdx !== -1 ? last.substring(0, dotIdx) : last;
+  } catch (e) {
+    return null;
+  }
+}
+
 // @desc    Get all products
 // @route   GET /api/products
 // @access  Public
@@ -160,28 +182,6 @@ const updateProduct = async (req, res) => {
       {
         new: true,
         runValidators: true
-      }
-
-      // Helper: extract public id from a Cloudinary URL when filename/public_id not provided
-      function _extractPublicIdFromUrl(url) {
-        try {
-          const idx = url.indexOf('/upload/');
-          if (idx === -1) return null;
-          let after = url.substring(idx + 8); // after '/upload/'
-          // remove any transformation segments (contain ',') and version like v123
-          // split by '/' and find the segment that looks like a public id with extension
-          const parts = after.split('/');
-          // drop version if present
-          if (parts.length > 1 && parts[0].startsWith('v') && /^v\d+$/.test(parts[0])) {
-            parts.shift();
-          }
-          const last = parts.join('/');
-          // remove extension
-          const dotIdx = last.lastIndexOf('.');
-          return dotIdx !== -1 ? last.substring(0, dotIdx) : last;
-        } catch (e) {
-          return null;
-        }
       }
     );
 
