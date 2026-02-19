@@ -16,6 +16,41 @@ Flutter-based mobile gallery app for browsing Il Mio Cioccolato cafe products.
 - Android Studio / Xcode
 - Android device/emulator or iOS device/simulator
 
+### Android SDK command-line tools (important)
+
+If you plan to run the app on Android devices or emulators, ensure the Android SDK command-line
+tools and build-tools are installed. Flutter requires `aapt` (part of Android build-tools)
+to build and install the app. If `flutter run` fails with "Could not locate aapt" or
+`flutter doctor` reports missing command-line tools, follow the steps below.
+
+- Using Android Studio:
+	- Open Android Studio → SDK Manager → SDK Tools tab.
+	- Check and install **Android SDK Command-line Tools**, **Android SDK Build-Tools**,
+		and **Android SDK Platform-Tools** for the Android API level you target (e.g. API 31).
+
+- Using the command line (example):
+
+```bash
+# set this to your SDK path if different
+export ANDROID_SDK_ROOT=$HOME/Library/Android/sdk
+export PATH="$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools"
+
+# install command-line tools, platform-tools, platforms and build-tools
+# adjust android-31 / 33.0.2 to the API / build-tools version you need
+sdkmanager --install "cmdline-tools;latest" "platform-tools" "platforms;android-31" "build-tools;33.0.2"
+```
+
+After installation, verify with:
+
+```bash
+flutter doctor -v
+flutter devices
+```
+
+If you downloaded the command-line tools bundle manually, unzip it into
+`$ANDROID_SDK_ROOT/cmdline-tools/` and place the folder as `latest` (or update
+the PATH to point to the correct folder).
+
 ## Installation
 
 1. Install dependencies:
