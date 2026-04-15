@@ -7,7 +7,7 @@
 - [x] Sensitive credentials removed from code
 - [x] API URL uses environment variables
 - [x] `render.yaml` configuration created
-- [x] MongoDB Atlas connection configured
+- [x] Render PostgreSQL connection configured
 - [x] Cloudinary integration ready
 
 ## Step 1: Push to GitHub
@@ -33,13 +33,13 @@ git push -u origin main
 
 **Backend Service (ilmio-backend):**
 ```
-MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?appName=<dbname>
+DATABASE_URL=postgresql://<user>:<password>@<host>:5432/<db-name>
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 NODE_ENV=production
 ```
-⚠️ **Use your actual credentials from MongoDB Atlas and Cloudinary dashboards**
+⚠️ **Use your actual credentials from Render PostgreSQL and Cloudinary dashboards**
 
 **Admin Panel (ilmio-admin):**
 ```
@@ -49,8 +49,8 @@ REACT_APP_API_URL=https://ilmio-backend.onrender.com/api
 
 ## Step 3: Post-Deployment
 
-### Update MongoDB Atlas
-- [ ] Go to MongoDB Atlas → Network Access
+### Update Render PostgreSQL
+- [ ] Go to Render PostgreSQL → Network Access
 - [ ] Add IP: `0.0.0.0/0` (allow all)
 - [ ] Or add Render IPs from their docs
 
@@ -69,7 +69,7 @@ REACT_APP_API_URL=https://ilmio-backend.onrender.com/api
 ## Step 4: Monitor
 
 - [ ] Check Render logs for errors
-- [ ] Monitor MongoDB Atlas usage
+- [ ] Monitor Render PostgreSQL usage
 - [ ] Track Cloudinary storage
 
 ## URLs After Deployment
@@ -82,7 +82,7 @@ REACT_APP_API_URL=https://ilmio-backend.onrender.com/api
 
 | Issue | Solution |
 |-------|----------|
-| Backend timeout | Check MongoDB whitelist |
+| Backend timeout | Check PostgreSQL whitelist |
 | Admin can't connect | Verify `REACT_APP_API_URL` |
 | Images fail | Check Cloudinary credentials |
 | CORS error | Verify backend CORS config |

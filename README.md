@@ -14,7 +14,7 @@ A full-stack application for Il Mio Cioccolato cafe featuring a Node.js backend,
 
 ```
 /Volumes/PERSONAL/ilmio/
-├── backend/              # Node.js + Express + MongoDB API
+├── backend/              # Node.js + Express + PostgreSQL API
 ├── admin/                # React.js Admin Panel
 └── mobile/               # Flutter Mobile Gallery App
 ```
@@ -23,7 +23,7 @@ A full-stack application for Il Mio Cioccolato cafe featuring a Node.js backend,
 
 ### Prerequisites
 - Node.js 16+
-- MongoDB Atlas account
+- Render PostgreSQL account
 - Cloudinary account (for image uploads)
 - Flutter SDK (for mobile app)
 
@@ -60,11 +60,11 @@ flutter run
 
 ## 📦 Components
 
-### 1. Backend API (Node.js + Express + MongoDB)
+### 1. Backend API (Node.js + Express + PostgreSQL)
 RESTful API for managing cafe products and categories.
 
 **Features:**
-- MongoDB Atlas database with Mongoose ODM
+- Render PostgreSQL database with Prisma ODM
 - CRUD operations for products and categories
 - Dynamic category management
 - Product availability toggle
@@ -76,15 +76,15 @@ RESTful API for managing cafe products and categories.
 **Tech Stack:**
 - Node.js
 - Express.js
-- MongoDB Atlas
-- Mongoose
+- Render PostgreSQL
+- Prisma
 - Multer (file uploads)
 - Cloudinary (image hosting)
 
 **Environment Variables Required:**
 ```
 PORT=5001
-MONGODB_URI=your_mongodb_connection_string
+DATABASE_URL=your_postgresql_connection_string
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
@@ -130,7 +130,7 @@ Swipeable product gallery for customers.
 
 ### Prerequisites
 - Node.js (v16+)
-- MongoDB (v5+)
+- PostgreSQL (v5+)
 - Flutter SDK (v3+)
 - npm or yarn
 
@@ -144,13 +144,13 @@ npm install
 Create `.env` file:
 ```env
 PORT=5001
-MONGODB_URI=mongodb://localhost:27017/ilmiocioccolato
+DATABASE_URL=postgresql://localhost:5432/ilmiocioccolato
 NODE_ENV=development
 ```
 
-Start MongoDB and run the server:
+Start PostgreSQL and run the server:
 ```bash
-# Start MongoDB (if not running)
+# Start PostgreSQL (if not running)
 mongod
 
 # Run backend
@@ -233,7 +233,7 @@ flutter build apk --release
 
 ## 🔧 Development Workflow
 
-1. **Start MongoDB**
+1. **Start PostgreSQL**
 2. **Run Backend** (`npm run dev` in backend/)
 3. **Run Admin Panel** (`npm start` in admin/)
 4. **Run Mobile App** (`flutter run` in mobile/)
@@ -266,7 +266,7 @@ flutter build ios --release
 ## 🛠️ Troubleshooting
 
 ### Backend Issues
-- Ensure MongoDB is running
+- Ensure PostgreSQL is running
 - Check port 5001 is not in use
 - Verify `.env` configuration
 
@@ -286,7 +286,7 @@ flutter build ios --release
 ### Backend (.env)
 ```env
 PORT=5001
-MONGODB_URI=mongodb://localhost:27017/ilmiocioccolato
+DATABASE_URL=postgresql://localhost:5432/ilmiocioccolato
 NODE_ENV=development
 ```
 
