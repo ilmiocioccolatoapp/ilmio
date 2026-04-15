@@ -16,6 +16,8 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imgUrl = getSizedImageUrl(product.image, context);
+
     return AnimatedScale(
       scale: isActive ? 1.0 : 0.9,
       duration: AppConstants.pageTransitionDuration,
@@ -30,7 +32,7 @@ class ProductCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppConstants.cardBorderRadius),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
+              color: Colors.black.withAlpha((0.2 * 255).round()),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -47,14 +49,12 @@ class ProductCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    final imgUrl = getSizedImageUrl(product.image, context);
-
                     CachedNetworkImage(
                       imageUrl: imgUrl,
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Container(
-                        color: const Color(AppConstants.darkBrownValue)
-                            .withValues(alpha: 0.1),
+                        color: Color(AppConstants.darkBrownValue)
+                            .withAlpha((0.1 * 255).round()),
                         child: const Center(
                           child: CircularProgressIndicator(
                             color: Color(AppConstants.primaryColorValue),
@@ -62,9 +62,9 @@ class ProductCard extends StatelessWidget {
                         ),
                       ),
                       errorWidget: (context, url, error) => Container(
-                        color: const Color(AppConstants.darkBrownValue)
-                            .withValues(alpha: 0.1),
-                        child: const Column(
+                        color: Color(AppConstants.darkBrownValue)
+                            .withAlpha((0.1 * 255).round()),
+                        child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
@@ -72,7 +72,7 @@ class ProductCard extends StatelessWidget {
                               size: 60,
                               color: Color(AppConstants.primaryColorValue),
                             ),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             Text(
                               'Image not available',
                               style: TextStyle(
@@ -97,7 +97,8 @@ class ProductCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
+                              color:
+                                  Colors.black.withAlpha((0.2 * 255).round()),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -138,8 +139,8 @@ class ProductCard extends StatelessWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.white,
-                        const Color(AppConstants.primaryColorValue)
-                            .withValues(alpha: 0.05),
+                        Color(AppConstants.primaryColorValue)
+                            .withAlpha((0.05 * 255).round()),
                       ],
                     ),
                   ),
@@ -205,14 +206,12 @@ class ProductCard extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color:
-                                      const Color(AppConstants.goldAccentValue)
-                                          .withValues(alpha: 0.1),
+                                  color: Color(AppConstants.goldAccentValue)
+                                      .withAlpha((0.1 * 255).round()),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: const Color(
-                                            AppConstants.goldAccentValue)
-                                        .withValues(alpha: 0.3),
+                                    color: Color(AppConstants.goldAccentValue)
+                                        .withAlpha((0.3 * 255).round()),
                                   ),
                                 ),
                                 child: Column(

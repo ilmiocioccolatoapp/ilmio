@@ -57,7 +57,7 @@ This system enables Il Mio Cioccolato cafe to:
          ┌───────────┴───────────┐
          │                       │
     ┌────▼─────┐         ┌──────▼──────┐
-    │ MongoDB  │         │ Cloudinary  │
+    │ PostgreSQL  │         │ Cloudinary  │
     │  Atlas   │         │   (Images)  │
     └──────────┘         └─────────────┘
 ```
@@ -66,7 +66,7 @@ This system enables Il Mio Cioccolato cafe to:
 - **Backend**: Render.com (Web Service)
 - **Admin Panel**: Render.com (Static Site)
 - **Mobile App**: Android/iOS (via App Stores)
-- **Database**: MongoDB Atlas (Cloud)
+- **Database**: Render PostgreSQL (Cloud)
 - **Images**: Cloudinary (CDN)
 
 ---
@@ -78,8 +78,8 @@ This system enables Il Mio Cioccolato cafe to:
 |-----------|---------|---------|
 | **Node.js** | 16+ | Runtime environment |
 | **Express.js** | ^4.18.2 | Web framework |
-| **MongoDB** | - | NoSQL database |
-| **Mongoose** | ^8.0.0 | MongoDB ODM |
+| **PostgreSQL** | - | NoSQL database |
+| **Prisma** | ^8.0.0 | PostgreSQL ODM |
 | **CORS** | ^2.8.5 | Cross-origin resource sharing |
 | **dotenv** | ^16.3.1 | Environment variable management |
 | **Multer** | ^1.4.5-lts.1 | File upload middleware |
@@ -110,7 +110,7 @@ This system enables Il Mio Cioccolato cafe to:
 ### Development & Deployment Tools
 - **Git/GitHub**: Version control
 - **Render.com**: Cloud hosting platform
-- **MongoDB Atlas**: Cloud database
+- **Render PostgreSQL**: Cloud database
 - **Cloudinary**: Image CDN
 - **VS Code**: Primary IDE
 - **Postman**: API testing
@@ -124,7 +124,7 @@ This system enables Il Mio Cioccolato cafe to:
 │
 ├── backend/                      # Node.js Backend API
 │   ├── config/
-│   │   └── database.js          # MongoDB connection config
+│   │   └── database.js          # PostgreSQL connection config
 │   ├── controllers/
 │   │   ├── categoryController.js # Category business logic
 │   │   └── productController.js  # Product business logic
@@ -183,7 +183,7 @@ This system enables Il Mio Cioccolato cafe to:
 │   ├── analysis_options.yaml    # Linter config
 │   └── README.md
 │
-├── mongodb_data/                 # Local MongoDB data (dev)
+├── postgres_data/                # Local PostgreSQL data (dev)
 ├── scripts/
 │   └── keep-alive.sh            # Render keep-alive script
 │
@@ -202,7 +202,7 @@ RESTful API built with Node.js and Express.js, handling all business logic, data
 
 ### Key Features
 - ✅ RESTful API architecture
-- ✅ MongoDB Atlas integration
+- ✅ Render PostgreSQL integration
 - ✅ CRUD operations for products and categories
 - ✅ Dynamic category management with ordering
 - ✅ Product availability toggle
@@ -217,7 +217,7 @@ RESTful API built with Node.js and Express.js, handling all business logic, data
 ```json
 {
   "express": "^4.18.2",
-  "mongoose": "^8.0.0",
+  "Prisma": "^8.0.0",
   "cors": "^2.8.5",
   "dotenv": "^16.3.1",
   "multer": "^1.4.5-lts.1",
@@ -364,7 +364,7 @@ lib/
 
 ## 🗄️ Database Schema
 
-### MongoDB Collections
+### PostgreSQL Collections
 
 #### Products Collection
 ```javascript
@@ -796,8 +796,8 @@ services:
 PORT=5001
 NODE_ENV=production
 
-# MongoDB Atlas
-MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<database>?retryWrites=true&w=majority&appName=<appname>
+# Render PostgreSQL
+DATABASE_URL=postgresql://<user>:<password>@<host>:5432/<db-name>
 
 # Cloudinary Configuration
 CLOUDINARY_CLOUD_NAME=your_cloud_name
@@ -809,7 +809,7 @@ CLOUDINARY_API_SECRET=your_api_secret
 ```env
 PORT=5001
 NODE_ENV=development
-MONGODB_URI=mongodb://localhost:27017/ilmiocioccolato
+DATABASE_URL=postgresql://localhost:5432/ilmiocioccolato
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
@@ -843,7 +843,7 @@ static const String baseUrl = 'https://ilmiobackend.onrender.com/api';
 ### Prerequisites
 - **Node.js**: v16 or higher
 - **npm**: v8 or higher
-- **MongoDB**: Local or Atlas account
+- **PostgreSQL**: Local or Atlas account
 - **Cloudinary**: Account with API credentials
 - **Flutter**: SDK 3.0.0 or higher (for mobile)
 - **Git**: For version control
@@ -869,7 +869,7 @@ cp .env.example .env
 ```env
 PORT=5001
 NODE_ENV=development
-MONGODB_URI=mongodb://localhost:27017/ilmiocioccolato
+DATABASE_URL=postgresql://localhost:5432/ilmiocioccolato
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
@@ -954,24 +954,24 @@ flutter run --release
 flutter pub run flutter_launcher_icons:main
 ```
 
-### Local MongoDB Setup (Optional)
+### Local PostgreSQL Setup (Optional)
 
 **Using Docker**:
 ```bash
-docker run -d -p 27017:27017 --name mongodb mongo:latest
+docker run -d -p 5432:5432 --name postgres -e POSTGRES_PASSWORD=postgres postgres:16
 ```
 
 **Using local installation**:
 ```bash
 # macOS
-brew install mongodb-community
-brew services start mongodb-community
+brew install postgresql
+brew services start postgresql
 
 # Linux
 sudo systemctl start mongod
 
 # Windows
-# Start MongoDB service from Services panel
+# Start PostgreSQL service from Services panel
 ```
 
 ### Development Tips
@@ -979,7 +979,7 @@ sudo systemctl start mongod
 **Backend**:
 - Use Postman/Insomnia for API testing
 - Check `server.js` logs for debugging
-- MongoDB Compass for database visualization
+- PostgreSQL Compass for database visualization
 - Nodemon auto-restarts on file changes
 
 **Admin Panel**:
@@ -1004,10 +1004,10 @@ sudo systemctl start mongod
 - ✅ File type validation for uploads
 - ✅ File size limits enforced (10MB)
 - ✅ Environment variables for secrets
-- ⚠️ MongoDB connection string should use strong password
+- ⚠️ PostgreSQL connection string should use strong password
 
 ### Performance Optimizations
-- **Backend**: Connection pooling with Mongoose
+- **Backend**: Connection pooling with Prisma
 - **Admin**: React lazy loading (can be implemented)
 - **Mobile**: Image caching with cached_network_image
 - **Database**: Indexes on frequently queried fields
@@ -1035,7 +1035,7 @@ sudo systemctl start mongod
 ### Support & Maintenance
 - **Code Repository**: GitHub (private)
 - **Deployment Platform**: Render.com
-- **Database**: MongoDB Atlas
+- **Database**: Render PostgreSQL
 - **CDN**: Cloudinary
 - **Monitoring**: Render built-in monitoring
 
@@ -1063,7 +1063,7 @@ sudo systemctl start mongod
 - Node.js & Express.js
 - React.js
 - Flutter & Dart
-- MongoDB & Mongoose
+- PostgreSQL & Prisma
 - Cloudinary
 - Render.com
 

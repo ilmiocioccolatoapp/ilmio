@@ -1,22 +1,56 @@
-const Category = require('../models/Category');
-const Product = require('../models/Product');
+const prisma = require('../config/prisma');
 
-// @desc    Get all categories
-// @route   GET /api/categories
-// @access  Public
+function _mapCategory(category, count = 0) {
+  return {
+    ...category,
+    _id: category.dbId,
+    count
+  };
+}
+
+function _validateCategoryInput(payload, { partial = false } = {}) {
+  const errors = [];
+
+  if (!partial || payload.id !== undefined) {
+    if (!payload.id || String(payload.id).trim() === '') {
+      errors.push('Please add a category ID');
+    }
+  }
+
+  if (!partial || payload.name !== undefined) {
+    if (!payload.name || String(payload.name).trim() === '') {
+      errors.push('Please add a category name');
+    }
+    if (payload.name && String(payload.name).length > 50) {
+      errors.push('Name cannot be more than 50 characters');
+    }
+  }
+
+  if (!partial || payload.icon !== undefined) {
+    if (!payload.icon || String(payload.icon).trim() === '') {
+      errors.push('Please add an icon');
+    }
+  }
+
+  return errors;
+}
+
 const getCategories = async (req, res) => {
   try {
-    const categories = await Category.find().sort({ order: 1 });
-    const products = await Product.find();
-    
-    // Add product count to each category
-    const categoriesWithCount = categories.map(cat => {
-      const count = products.filter(p => p.category === cat.id).length;
-      return {
-        ...cat.toObject(),
-        count
-      };
+    const categories = await prisma.category.findMany({
+      orderBy: { order: 'asc' }
     });
+
+    const grouped = await prisma.product.groupBy({
+      by: ['category'],
+      _count: {
+        _all: true
+      }
+    });
+
+    const countMap = Object.fromEntries(grouped.map((row) => [row.category, row._count._all]));
+
+    const categoriesWithCount = categories.map((cat) => _mapCategory(cat, countMap[cat.id] || 0));
 
     res.status(200).json({
       success: true,
@@ -31,30 +65,39 @@ const getCategories = async (req, res) => {
   }
 };
 
-// @desc    Create new category
-// @route   POST /api/categories
-// @access  Private
 const createCategory = async (req, res) => {
   try {
-    const category = await Category.create(req.body);
+    const data = {
+      id: req.body.id ? String(req.body.id).trim().toLowerCase() : req.body.id,
+      name: req.body.name ? String(req.body.name).trim() : req.body.name,
+      icon: req.body.icon ? String(req.body.icon).trim() : req.body.icon,
+      order: req.body.order === undefined ? 0 : Number(req.body.order)
+    };
+
+    const validationErrors = _validateCategoryInput(data);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: validationErrors
+      });
+    }
+
+    const category = await prisma.category.create({
+      data
+    });
+
     res.status(201).json({
       success: true,
-      data: category
+      data: _mapCategory(category)
     });
   } catch (error) {
-    if (error.code === 11000) {
+    if (error.code === 'P2002') {
       return res.status(400).json({
         success: false,
         error: 'Category ID already exists'
       });
     }
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        error: messages
-      });
-    }
+
     res.status(500).json({
       success: false,
       error: error.message
@@ -62,12 +105,11 @@ const createCategory = async (req, res) => {
   }
 };
 
-// @desc    Update category
-// @route   PUT /api/categories/:id
-// @access  Private
 const updateCategory = async (req, res) => {
   try {
-    const category = await Category.findOne({ id: req.params.id });
+    const category = await prisma.category.findUnique({
+      where: { id: req.params.id }
+    });
 
     if (!category) {
       return res.status(404).json({
@@ -76,9 +118,11 @@ const updateCategory = async (req, res) => {
       });
     }
 
-    // Don't allow changing the ID if products exist with this category
     if (req.body.id && req.body.id !== category.id) {
-      const productsCount = await Product.countDocuments({ category: category.id });
+      const productsCount = await prisma.product.count({
+        where: { category: category.id }
+      });
+
       if (productsCount > 0) {
         return res.status(400).json({
           success: false,
@@ -87,27 +131,37 @@ const updateCategory = async (req, res) => {
       }
     }
 
-    const updatedCategory = await Category.findOneAndUpdate(
-      { id: req.params.id },
-      req.body,
-      {
-        new: true,
-        runValidators: true
-      }
-    );
+    const data = {};
+    if (req.body.id !== undefined) data.id = String(req.body.id).trim().toLowerCase();
+    if (req.body.name !== undefined) data.name = String(req.body.name).trim();
+    if (req.body.icon !== undefined) data.icon = String(req.body.icon).trim();
+    if (req.body.order !== undefined) data.order = Number(req.body.order);
+
+    const validationErrors = _validateCategoryInput(data, { partial: true });
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: validationErrors
+      });
+    }
+
+    const updatedCategory = await prisma.category.update({
+      where: { id: req.params.id },
+      data
+    });
 
     res.status(200).json({
       success: true,
-      data: updatedCategory
+      data: _mapCategory(updatedCategory)
     });
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
+    if (error.code === 'P2002') {
       return res.status(400).json({
         success: false,
-        error: messages
+        error: 'Category ID already exists'
       });
     }
+
     res.status(500).json({
       success: false,
       error: error.message
@@ -115,12 +169,11 @@ const updateCategory = async (req, res) => {
   }
 };
 
-// @desc    Delete category
-// @route   DELETE /api/categories/:id
-// @access  Private
 const deleteCategory = async (req, res) => {
   try {
-    const category = await Category.findOne({ id: req.params.id });
+    const category = await prisma.category.findUnique({
+      where: { id: req.params.id }
+    });
 
     if (!category) {
       return res.status(404).json({
@@ -129,8 +182,10 @@ const deleteCategory = async (req, res) => {
       });
     }
 
-    // Check if any products are using this category
-    const productsCount = await Product.countDocuments({ category: category.id });
+    const productsCount = await prisma.product.count({
+      where: { category: category.id }
+    });
+
     if (productsCount > 0) {
       return res.status(400).json({
         success: false,
@@ -138,7 +193,9 @@ const deleteCategory = async (req, res) => {
       });
     }
 
-    await Category.findOneAndDelete({ id: req.params.id });
+    await prisma.category.delete({
+      where: { id: req.params.id }
+    });
 
     res.status(200).json({
       success: true,

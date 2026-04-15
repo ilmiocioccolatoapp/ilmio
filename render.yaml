@@ -6,13 +6,11 @@ services:
     region: singapore
     plan: free
     buildCommand: cd backend && npm install
-    startCommand: cd backend && npm start
+    startCommand: cd backend && npx prisma db push && npm start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 5001
-      - key: MONGODB_URI
+      - key: DATABASE_URL
         sync: false
       - key: CLOUDINARY_CLOUD_NAME
         sync: false

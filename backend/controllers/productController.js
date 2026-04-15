@@ -1,21 +1,16 @@
-const Product = require('../models/Product');
+const prisma = require('../config/prisma');
 const cloudinary = require('cloudinary').v2;
 
-// Helper: extract public id from a Cloudinary URL when filename/public_id not provided
 function _extractPublicIdFromUrl(url) {
   try {
     const idx = url.indexOf('/upload/');
     if (idx === -1) return null;
-    let after = url.substring(idx + 8); // after '/upload/'
-    // remove any transformation segments (contain ',') and version like v123
-    // split by '/' and find the segment that looks like a public id with extension
+    const after = url.substring(idx + 8);
     const parts = after.split('/');
-    // drop version if present
     if (parts.length > 1 && parts[0].startsWith('v') && /^v\d+$/.test(parts[0])) {
       parts.shift();
     }
     const last = parts.join('/');
-    // remove extension
     const dotIdx = last.lastIndexOf('.');
     return dotIdx !== -1 ? last.substring(0, dotIdx) : last;
   } catch (e) {
@@ -23,71 +18,76 @@ function _extractPublicIdFromUrl(url) {
   }
 }
 
-// @desc    Get all products
-// @route   GET /api/products
-// @access  Public
+function _mapProduct(product) {
+  return {
+    ...product,
+    _id: product.dbId
+  };
+}
+
+function _parseBoolean(value, defaultValue = undefined) {
+  if (value === undefined) return defaultValue;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  return Boolean(value);
+}
+
+function _validateProductInput(payload, { partial = false } = {}) {
+  const errors = [];
+  const requiredFields = ['title', 'category', 'description', 'ingredients', 'price'];
+
+  if (!partial) {
+    for (const field of requiredFields) {
+      if (!payload[field] || String(payload[field]).trim() === '') {
+        errors.push(`Please add a product ${field}`);
+      }
+    }
+
+    if (!payload.image || String(payload.image).trim() === '') {
+      errors.push('Please add an image URL');
+    }
+  }
+
+  if (payload.title && String(payload.title).length > 100) {
+    errors.push('Title cannot be more than 100 characters');
+  }
+
+  if (payload.description && String(payload.description).length > 500) {
+    errors.push('Description cannot be more than 500 characters');
+  }
+
+  if (payload.price && !/^(AED|€)\s?\d+\.\d{2}$/.test(String(payload.price).trim())) {
+    errors.push('Price must be in format AED X.XX or €X.XX');
+  }
+
+  return errors;
+}
+
+async function _getCategoryOrderMap() {
+  const categories = await prisma.category.findMany({
+    select: { id: true },
+    orderBy: { order: 'asc' }
+  });
+
+  const categoryOrder = {};
+  categories.forEach((cat, index) => {
+    categoryOrder[cat.id] = index;
+  });
+
+  return categoryOrder;
+}
+
 const getProducts = async (req, res) => {
   try {
-    const Category = require('../models/Category');
-    const categories = await Category.find().sort({ order: 1 });
-    const categoryOrder = {};
-    categories.forEach((cat, index) => {
-      categoryOrder[cat.id] = index;
-    });
+    const categoryOrder = await _getCategoryOrderMap();
 
-    let products = await Product.find();
-    // Convert any product with stored public id into generated URL (secure, no forced width)
-    products = products.map(p => {
-      const obj = p.toObject ? p.toObject() : p;
-      if (obj.imagePublicId) {
-        try {
-          obj.image = cloudinary.url(obj.imagePublicId, { secure: true, fetch_format: 'auto', quality: 'auto' });
-        } catch (e) {
-          // keep original image if generation fails
-        }
-      }
-      return obj;
-    });
-    
-    // Sort by category order, then by createdAt within each category
-    products.sort((a, b) => {
-      const catOrderA = categoryOrder[a.category] ?? 999;
-      const catOrderB = categoryOrder[b.category] ?? 999;
-      
-      if (catOrderA !== catOrderB) {
-        return catOrderA - catOrderB;
-      }
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    });
-
-    res.status(200).json({
-      success: true,
-      count: products.length,
-      data: products
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-};
-
-// @desc    Get available products only
-// @route   GET /api/products/available
-// @access  Public
-const getAvailableProducts = async (req, res) => {
-  try {
-    const Category = require('../models/Category');
-    const categories = await Category.find().sort({ order: 1 });
-    const categoryOrder = {};
-    categories.forEach((cat, index) => {
-      categoryOrder[cat.id] = index;
-    });
-
-    let products = await Product.find({ available: true });
-    products = products.map(p => {
-      const obj = p.toObject ? p.toObject() : p;
+    let products = await prisma.product.findMany();
+    products = products.map((p) => {
+      const obj = { ...p };
       if (obj.imagePublicId) {
         try {
           obj.image = cloudinary.url(obj.imagePublicId, { secure: true, fetch_format: 'auto', quality: 'auto' });
@@ -95,22 +95,20 @@ const getAvailableProducts = async (req, res) => {
       }
       return obj;
     });
-    
-    // Sort by category order, then by createdAt within each category
+
     products.sort((a, b) => {
       const catOrderA = categoryOrder[a.category] ?? 999;
       const catOrderB = categoryOrder[b.category] ?? 999;
-      
-      if (catOrderA !== catOrderB) {
-        return catOrderA - catOrderB;
-      }
+      if (catOrderA !== catOrderB) return catOrderA - catOrderB;
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
+    const mapped = products.map(_mapProduct);
+
     res.status(200).json({
       success: true,
-      count: products.length,
-      data: products
+      count: mapped.length,
+      data: mapped
     });
   } catch (error) {
     res.status(500).json({
@@ -120,33 +118,88 @@ const getAvailableProducts = async (req, res) => {
   }
 };
 
-// @desc    Create new product
-// @route   POST /api/products
-// @access  Private
+const getAvailableProducts = async (req, res) => {
+  try {
+    const categoryOrder = await _getCategoryOrderMap();
+
+    let products = await prisma.product.findMany({
+      where: { available: true }
+    });
+
+    products = products.map((p) => {
+      const obj = { ...p };
+      if (obj.imagePublicId) {
+        try {
+          obj.image = cloudinary.url(obj.imagePublicId, { secure: true, fetch_format: 'auto', quality: 'auto' });
+        } catch (e) {}
+      }
+      return obj;
+    });
+
+    products.sort((a, b) => {
+      const catOrderA = categoryOrder[a.category] ?? 999;
+      const catOrderB = categoryOrder[b.category] ?? 999;
+      if (catOrderA !== catOrderB) return catOrderA - catOrderB;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    const mapped = products.map(_mapProduct);
+
+    res.status(200).json({
+      success: true,
+      count: mapped.length,
+      data: mapped
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
 const createProduct = async (req, res) => {
   try {
     const productData = { ...req.body };
-    
-    // If image was uploaded, use Cloudinary URL
+
     if (req.file) {
       productData.image = req.file.path;
-      // store public id when available for future server-side URL generation
       productData.imagePublicId = req.file.filename || req.file.public_id || _extractPublicIdFromUrl(req.file.path);
     }
-    
-    const product = await Product.create(productData);
-    res.status(201).json({
-      success: true,
-      data: product
-    });
-  } catch (error) {
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
+
+    const validationErrors = _validateProductInput(productData);
+    if (validationErrors.length > 0) {
       return res.status(400).json({
         success: false,
-        error: messages
+        error: validationErrors
       });
     }
+
+    const created = await prisma.product.create({
+      data: {
+        title: String(productData.title).trim(),
+        category: String(productData.category).trim(),
+        image: String(productData.image).trim(),
+        imagePublicId: productData.imagePublicId || null,
+        description: String(productData.description).trim(),
+        ingredients: String(productData.ingredients).trim(),
+        price: String(productData.price).trim(),
+        available: _parseBoolean(productData.available, true)
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: _mapProduct(created)
+    });
+  } catch (error) {
+    if (error.code === 'P2003') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid category. Please select a valid category.'
+      });
+    }
+
     res.status(500).json({
       success: false,
       error: error.message
@@ -154,12 +207,11 @@ const createProduct = async (req, res) => {
   }
 };
 
-// @desc    Update product
-// @route   PUT /api/products/:id
-// @access  Private
 const updateProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await prisma.product.findUnique({
+      where: { dbId: req.params.id }
+    });
 
     if (!product) {
       return res.status(404).json({
@@ -169,34 +221,49 @@ const updateProduct = async (req, res) => {
     }
 
     const updateData = { ...req.body };
-    
-    // If new image was uploaded, use Cloudinary URL
+
     if (req.file) {
       updateData.image = req.file.path;
       updateData.imagePublicId = req.file.filename || req.file.public_id || _extractPublicIdFromUrl(req.file.path);
     }
 
-    const updatedProduct = await Product.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      {
-        new: true,
-        runValidators: true
+    const validationErrors = _validateProductInput(updateData, { partial: true });
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: validationErrors
+      });
+    }
+
+    const data = {};
+    const fields = ['title', 'category', 'image', 'imagePublicId', 'description', 'ingredients', 'price'];
+    fields.forEach((field) => {
+      if (updateData[field] !== undefined) {
+        data[field] = typeof updateData[field] === 'string' ? updateData[field].trim() : updateData[field];
       }
-    );
+    });
+
+    if (updateData.available !== undefined) {
+      data.available = _parseBoolean(updateData.available);
+    }
+
+    const updatedProduct = await prisma.product.update({
+      where: { dbId: req.params.id },
+      data
+    });
 
     res.status(200).json({
       success: true,
-      data: updatedProduct
+      data: _mapProduct(updatedProduct)
     });
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
+    if (error.code === 'P2003') {
       return res.status(400).json({
         success: false,
-        error: messages
+        error: 'Invalid category. Please select a valid category.'
       });
     }
+
     res.status(500).json({
       success: false,
       error: error.message
@@ -204,12 +271,11 @@ const updateProduct = async (req, res) => {
   }
 };
 
-// @desc    Delete product
-// @route   DELETE /api/products/:id
-// @access  Private
 const deleteProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await prisma.product.findUnique({
+      where: { dbId: req.params.id }
+    });
 
     if (!product) {
       return res.status(404).json({
@@ -218,7 +284,9 @@ const deleteProduct = async (req, res) => {
       });
     }
 
-    await Product.findByIdAndDelete(req.params.id);
+    await prisma.product.delete({
+      where: { dbId: req.params.id }
+    });
 
     res.status(200).json({
       success: true,
@@ -232,12 +300,11 @@ const deleteProduct = async (req, res) => {
   }
 };
 
-// @desc    Toggle product availability
-// @route   PATCH /api/products/:id/toggle
-// @access  Private
 const toggleAvailability = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await prisma.product.findUnique({
+      where: { dbId: req.params.id }
+    });
 
     if (!product) {
       return res.status(404).json({
@@ -246,12 +313,14 @@ const toggleAvailability = async (req, res) => {
       });
     }
 
-    product.available = !product.available;
-    await product.save();
+    const updated = await prisma.product.update({
+      where: { dbId: req.params.id },
+      data: { available: !product.available }
+    });
 
     res.status(200).json({
       success: true,
-      data: product
+      data: _mapProduct(updated)
     });
   } catch (error) {
     res.status(500).json({

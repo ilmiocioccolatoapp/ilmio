@@ -6,7 +6,7 @@ This guide will help you deploy the Il Mio Cioccolato application to Render.
 
 1. **GitHub Account** - Your code should be pushed to GitHub
 2. **Render Account** - Sign up at [render.com](https://render.com)
-3. **MongoDB Atlas** - Already configured
+3. **Render PostgreSQL** - Already configured
 4. **Cloudinary Account** - Already configured
 
 ## Option 1: Deploy Using render.yaml (Recommended)
@@ -30,7 +30,7 @@ This method deploys both backend and admin panel automatically.
    
    For **ilmio-backend** service, add:
    ```
-   MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?appName=<dbname>
+   DATABASE_URL=postgresql://<user>:<password>@<host>:5432/<db-name>
    CLOUDINARY_CLOUD_NAME=your_cloud_name
    CLOUDINARY_API_KEY=your_api_key
    CLOUDINARY_API_SECRET=your_api_secret
@@ -38,7 +38,7 @@ This method deploys both backend and admin panel automatically.
    ```
    
    ⚠️ **Important:** Replace placeholders with your actual credentials from:
-   - MongoDB Atlas Dashboard → Database → Connect
+   - Render PostgreSQL Dashboard → Database → Connect
    - Cloudinary Console → Account Details
 
    For **ilmio-admin** service, add:
@@ -70,14 +70,14 @@ This method deploys both backend and admin panel automatically.
 2. **Add Environment Variables**
    ```
    NODE_ENV=production
-   MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?appName=<dbname>
+   DATABASE_URL=postgresql://<user>:<password>@<host>:5432/<db-name>
    CLOUDINARY_CLOUD_NAME=your_cloud_name
    CLOUDINARY_API_KEY=your_api_key
    CLOUDINARY_API_SECRET=your_api_secret
    ```
    
    Get your credentials from:
-   - MongoDB Atlas: Database → Connect → Connect your application
+   - Render PostgreSQL: Database → Connect → Connect your application
    - Cloudinary: Console → Account Details
 
 3. **Deploy**
@@ -108,8 +108,8 @@ This method deploys both backend and admin panel automatically.
 
 ## Post-Deployment Steps
 
-### 1. Update MongoDB Atlas Whitelist
-- Go to MongoDB Atlas
+### 1. Update Render PostgreSQL Whitelist
+- Go to Render PostgreSQL
 - Navigate to Network Access
 - Add Render's IP: `0.0.0.0/0` (allow from anywhere)
   - Or add specific Render IPs from their documentation
@@ -151,7 +151,7 @@ static const String baseUrl = 'https://ilmiobackend.onrender.com/api';
 ❌ **DON'T:**
 - Commit `.env` files to Git
 - Hardcode secrets in code
-- Share MongoDB or Cloudinary credentials publicly
+- Share PostgreSQL or Cloudinary credentials publicly
 
 ### CORS Configuration
 The backend is configured to accept requests from any origin (`origin: '*'`). For production, consider restricting to your admin panel URL:
@@ -168,7 +168,7 @@ app.use(cors({
 
 ### Backend Won't Start
 - Check environment variables are set correctly
-- Verify MongoDB connection string
+- Verify PostgreSQL connection string
 - Check Render logs: Dashboard → Service → Logs
 
 ### Admin Panel Can't Connect to Backend
@@ -184,7 +184,7 @@ app.use(cors({
 ## Monitoring
 
 - **Render Dashboard**: View logs, metrics, and deployment history
-- **MongoDB Atlas**: Monitor database usage
+- **Render PostgreSQL**: Monitor database usage
 - **Cloudinary**: Track image storage and bandwidth
 
 ## Auto-Deploy
