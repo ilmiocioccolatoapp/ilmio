@@ -4,7 +4,7 @@ Backend API for Il Mio Cioccolato cafe management system.
 
 ## Features
 - RESTful API with Express.js
-- MongoDB database with Mongoose
+- PostgreSQL database via Prisma
 - Product CRUD operations
 - Availability toggle
 - File upload support
@@ -22,8 +22,17 @@ npm install
 Create a `.env` file in the backend directory:
 ```env
 PORT=5001
-MONGODB_URI=mongodb://localhost:27017/ilmiocioccolato
+DATABASE_URL=postgresql://user:password@localhost:5432/ilmiocioccolato
 NODE_ENV=development
+```
+
+## Database Setup
+
+Generate Prisma client and apply schema:
+
+```bash
+npm run prisma:generate
+npm run prisma:push
 ```
 
 ## Running the Server
@@ -48,27 +57,11 @@ npm start
 - `DELETE /api/products/:id` - Delete product
 - `PATCH /api/products/:id/toggle` - Toggle availability
 
-## Product Schema
-
-```javascript
-{
-  title: String (required, max 100 chars),
-  category: String (required, enum: pastries|drinks|desserts|specialties),
-  image: String (required, URL),
-  description: String (required, max 500 chars),
-  ingredients: String (required),
-  price: String (required, format: €X.XX),
-  available: Boolean (default: true),
-  createdAt: Date,
-  updatedAt: Date
-}
-```
-
 ## Technologies
 - Node.js
 - Express.js
-- MongoDB
-- Mongoose
+- PostgreSQL
+- Prisma
 - Multer
 - CORS
 - dotenv

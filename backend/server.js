@@ -20,7 +20,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cors({
   origin: [
     'http://localhost:3000',          // Local development
-    'https://ilmioadmin.onrender.com' // Production admin panel
+    'https://ilmioadmin.onrender.com', // Legacy production admin panel
+    'https://ilmio-admin.onrender.com' // Production admin panel
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
