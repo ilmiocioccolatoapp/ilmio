@@ -16,6 +16,14 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState([]);
 
+  const getErrorMessage = (error) => {
+    if (!error) return 'Failed to save product';
+    if (typeof error === 'string') return error;
+    if (Array.isArray(error)) return error.join(', ');
+    if (Array.isArray(error.error)) return error.error.join(', ');
+    return error.error || error.message || 'Failed to save product';
+  };
+
   useEffect(() => {
     fetchCategories();
     if (product) {
@@ -92,7 +100,7 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
       onSuccess();
     } catch (error) {
       console.error('Error saving product:', error);
-      alert(error.error || 'Failed to save product');
+      alert(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
