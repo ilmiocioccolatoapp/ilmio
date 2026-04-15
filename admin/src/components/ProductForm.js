@@ -131,15 +131,15 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
             {categories.length > 0 ? (
               categories.map(cat => (
                 <option key={cat.id} value={cat.id}>
-                  {cat.icon} {cat.name}
+                  {cat.name}
                 </option>
               ))
             ) : (
               <>
-                <option value="pastries">🥐 Pastries</option>
-                <option value="drinks">☕ Drinks</option>
-                <option value="desserts">🍰 Desserts</option>
-                <option value="specialties">✨ Specialties</option>
+                <option value="pastries">Pastries</option>
+                <option value="drinks">Drinks</option>
+                <option value="desserts">Desserts</option>
+                <option value="specialties">Specialties</option>
               </>
             )}
           </select>
@@ -233,4 +233,3 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
 };
 
 export default ProductForm;
-

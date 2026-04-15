@@ -82,7 +82,7 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
               <option value="unavailable">Unavailable</option>
               {categories.map(cat => (
                 <option key={cat._id} value={cat.name}>
-                  {cat.icon} {cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}
+                  {cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}
                 </option>
               ))}
             </select>
