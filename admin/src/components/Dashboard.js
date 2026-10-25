@@ -11,35 +11,41 @@ const Dashboard = ({ onAddProduct }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        const response = await productService.getAllProducts();
+        if (cancelled) return;
+        const products = response.data || [];
+
+        const categoryCount = {};
+        let availableCount = 0;
+
+        products.forEach(product => {
+          if (product.available) availableCount++;
+          categoryCount[product.category] = (categoryCount[product.category] || 0) + 1;
+        });
+
+        setStats({
+          total: products.length,
+          available: availableCount,
+          unavailable: products.length - availableCount,
+          byCategory: categoryCount
+        });
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
     fetchStats();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  const fetchStats = async () => {
-    try {
-      setLoading(true);
-      const response = await productService.getAllProducts();
-      const products = response.data;
-
-      const categoryCount = {};
-      let availableCount = 0;
-
-      products.forEach(product => {
-        if (product.available) availableCount++;
-        categoryCount[product.category] = (categoryCount[product.category] || 0) + 1;
-      });
-
-      setStats({
-        total: products.length,
-        available: availableCount,
-        unavailable: products.length - availableCount,
-        byCategory: categoryCount
-      });
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return <div className="loading">Loading dashboard...</div>;

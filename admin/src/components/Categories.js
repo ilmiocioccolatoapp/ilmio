@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { categoryService } from '../services/api';
 
 const Categories = () => {
@@ -13,11 +13,7 @@ const Categories = () => {
     order: 0
   });
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       setLoading(true);
       const response = await categoryService.getAllCategories();
@@ -28,7 +24,11 @@ const Categories = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
 
   const handleAdd = () => {
     setEditingCategory(null);
@@ -126,15 +126,15 @@ const Categories = () => {
               {cat.count} {cat.count === 1 ? 'product' : 'products'}
             </div>
             <div style={{ marginTop: '15px', display: 'flex', gap: '8px' }}>
-              <button 
-                className="btn btn-sm btn-secondary" 
+              <button
+                className="btn btn-sm btn-secondary"
                 onClick={() => handleEdit(cat)}
                 style={{ flex: 1 }}
               >
                 ✏️ Edit
               </button>
-              <button 
-                className="btn btn-sm" 
+              <button
+                className="btn btn-sm"
                 onClick={() => handleDelete(cat)}
                 style={{ flex: 1, background: '#dc3545', color: 'white' }}
               >

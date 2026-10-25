@@ -8,31 +8,31 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    fetchProducts();
-    fetchCategories();
+    let cancelled = false;
+
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [productsResponse, categoriesData] = await Promise.all([
+          productService.getAllProducts(),
+          categoryService.getAllCategories()
+        ]);
+        if (cancelled) return;
+        setProducts(productsResponse.data || []);
+        setCategories(categoriesData || []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        if (!cancelled) alert('Failed to load products');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadData();
+    return () => {
+      cancelled = true;
+    };
   }, [refreshTrigger]);
-
-  const fetchCategories = async () => {
-    try {
-      const data = await categoryService.getAllCategories();
-      setCategories(data || []);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
-
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      const response = await productService.getAllProducts();
-      setProducts(response.data);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      alert('Failed to load products');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDelete = async (id, title) => {
     if (!window.confirm(`Are you sure you want to delete "${title}"?`)) {
@@ -41,7 +41,8 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
 
     try {
       await productService.deleteProduct(id);
-      fetchProducts();
+      const response = await productService.getAllProducts();
+      setProducts(response.data || []);
     } catch (error) {
       console.error('Error deleting product:', error);
       alert('Failed to delete product');
@@ -51,7 +52,8 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
   const handleToggle = async (id) => {
     try {
       await productService.toggleAvailability(id);
-      fetchProducts();
+      const response = await productService.getAllProducts();
+      setProducts(response.data || []);
     } catch (error) {
       console.error('Error toggling availability:', error);
       alert('Failed to toggle availability');
@@ -62,7 +64,6 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
     if (filter === 'all') return true;
     if (filter === 'available') return product.available;
     if (filter === 'unavailable') return !product.available;
-    // Compare by category name (products store category as string name)
     return product.category === filter;
   });
 
@@ -81,7 +82,7 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
               <option value="available">Available</option>
               <option value="unavailable">Unavailable</option>
               {categories.map(cat => (
-                <option key={cat._id} value={cat.name}>
+                <option key={cat._id || cat.id} value={cat.name}>
                   {cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}
                 </option>
               ))}
@@ -115,11 +116,11 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
                 </div>
 
                 <p className="product-description">
-                  {product.description.length > 80 
-                    ? product.description.substring(0, 80) + '...' 
+                  {product.description.length > 80
+                    ? product.description.substring(0, 80) + '...'
                     : product.description}
                 </p>
-                
+
                 <div className="product-details">
                   <p className="ingredients">
                     <strong>Ingredients:</strong> {product.ingredients.substring(0, 50)}...
