@@ -6,252 +6,160 @@ import '../utils/image_utils.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
-  final bool isActive;
+  final VoidCallback? onTap;
 
   const ProductCard({
     super.key,
     required this.product,
-    this.isActive = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final imgUrl = getSizedImageUrl(product.image, context);
+    final priceText =
+        product.price.trim().isEmpty ? '—' : product.price.trim();
 
-    return AnimatedScale(
-      scale: isActive ? 1.0 : 0.9,
-      duration: AppConstants.pageTransitionDuration,
-      curve: Curves.easeInOut,
-      child: Container(
-        margin: const EdgeInsets.symmetric(
-          horizontal: AppConstants.defaultPadding,
-          vertical: 20,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppConstants.cardBorderRadius),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha((0.2 * 255).round()),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppConstants.cardBorderRadius),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Product Image
               Expanded(
-                flex: 3,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: imgUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: Color(AppConstants.darkBrownValue)
-                            .withAlpha((0.1 * 255).round()),
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            color: Color(AppConstants.primaryColorValue),
+                flex: 6,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(18),
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CachedNetworkImage(
+                        imageUrl: imgUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: const Color(0xFFF3E9DC),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(AppConstants.primaryColorValue),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: const Color(0xFFF3E9DC),
+                          child: const Icon(
+                            Icons.image_not_supported_outlined,
+                            color: Color(AppConstants.darkBrownValue),
+                            size: 36,
                           ),
                         ),
                       ),
-                      errorWidget: (context, url, error) => Container(
-                        color: Color(AppConstants.darkBrownValue)
-                            .withAlpha((0.1 * 255).round()),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.broken_image,
-                              size: 60,
-                              color: Color(AppConstants.primaryColorValue),
+                      Positioned(
+                        top: 10,
+                        left: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${product.getCategoryEmoji()} ${product.category}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Image not available',
-                              style: TextStyle(
-                                color: Color(AppConstants.darkBrownValue),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                    // Category Badge
-                    Positioned(
-                      top: 16,
-                      right: 16,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(AppConstants.goldAccentValue),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color:
-                                  Colors.black.withAlpha((0.2 * 255).round()),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              product.getCategoryEmoji(),
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              product.category.toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                letterSpacing: 1,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-              // Product Details
               Expanded(
-                flex: 2,
-                child: Container(
-                  padding: const EdgeInsets.all(AppConstants.defaultPadding),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.white,
-                        Color(AppConstants.primaryColorValue)
-                            .withAlpha((0.05 * 255).round()),
-                      ],
-                    ),
-                  ),
+                flex: 4,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Title and Price
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              product.title,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Color(AppConstants.darkBrownValue),
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color:
-                                  const Color(AppConstants.primaryColorValue),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              product.price,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        product.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(AppConstants.darkBrownValue),
+                          height: 1.2,
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      // Description
+                      const SizedBox(height: 4),
                       Expanded(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                product.description,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[700],
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              // Ingredients
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Color(AppConstants.goldAccentValue)
-                                      .withAlpha((0.1 * 255).round()),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: Color(AppConstants.goldAccentValue)
-                                        .withAlpha((0.3 * 255).round()),
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Row(
-                                      children: [
-                                        Icon(
-                                          Icons.restaurant_menu,
-                                          size: 16,
-                                          color: Color(
-                                              AppConstants.primaryColorValue),
-                                        ),
-                                        SizedBox(width: 6),
-                                        Text(
-                                          'Ingredients',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(
-                                                AppConstants.primaryColorValue),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      product.ingredients,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[800],
-                                        height: 1.3,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                        child: Text(
+                          product.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            height: 1.35,
+                            color: Colors.grey.shade700,
                           ),
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(AppConstants.goldAccentValue)
+                                  .withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(AppConstants.goldAccentValue)
+                                    .withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: Text(
+                              priceText,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: Color(AppConstants.primaryColorValue),
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                            color: Color(AppConstants.darkBrownValue),
+                          ),
+                        ],
                       ),
                     ],
                   ),

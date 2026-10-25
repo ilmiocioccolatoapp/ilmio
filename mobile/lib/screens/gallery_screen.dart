@@ -6,6 +6,7 @@ import '../models/product.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../utils/image_utils.dart';
+import '../widgets/product_card.dart';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
@@ -81,6 +82,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   void _startAutoAdvance() {
     _autoAdvanceTimer?.cancel();
+    // No carousel auto-advance on tablet grid layouts
+    final width = MediaQuery.sizeOf(context).width;
+    if (width >= 700) return;
+
     _autoAdvanceTimer =
         Timer.periodic(AppConstants.autoAdvanceDuration, (timer) {
       if (_filteredProducts.isNotEmpty &&
@@ -115,7 +120,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
     _startAutoAdvance();
 
-    // Ensure categories are visible when user selects one, then auto-collapse
     setState(() {
       _showCategories = true;
     });
@@ -181,58 +185,46 @@ class _GalleryScreenState extends State<GalleryScreen> {
     );
   }
 
-  double _getHeaderHeight(bool isTablet) {
-    return MediaQuery.of(context).padding.top + (isTablet ? 56 : 44);
+  Widget _buildMainContent(bool isTablet) {
+    final width = MediaQuery.of(context).size.width;
+    final isWide = width >= 700; // tablet / landscape
+
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        _buildCategoryButtons(isTablet || isWide),
+        const SizedBox(height: 8),
+        Expanded(
+          child: _filteredProducts.isEmpty
+              ? _buildEmptyState()
+              : isWide
+                  ? _buildProductGrid()
+                  : Column(
+                      children: [
+                        Expanded(child: _buildGalleryContainer(isTablet)),
+                        _buildFoodInfo(isTablet),
+                      ],
+                    ),
+        ),
+      ],
+    );
   }
 
-  Widget _buildMainContent(bool isTablet) {
-    // Support both stacked layout (portrait) and side-by-side (landscape)
-    final isLandscape = MediaQuery.of(context).orientation ==
-            Orientation.landscape ||
-        MediaQuery.of(context).size.width > MediaQuery.of(context).size.height;
-
-    return SingleChildScrollView(
+  Widget _buildProductGrid() {
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
       physics: const AlwaysScrollableScrollPhysics(),
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height - _getHeaderHeight(isTablet),
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
-            _buildCategoryButtons(isTablet),
-            const SizedBox(height: 12),
-            if (_filteredProducts.isEmpty)
-              Expanded(child: _buildEmptyState())
-            else if (isLandscape)
-              // Side-by-side layout: gallery left, info right
-              Expanded(
-                child: Row(
-                  children: [
-                    Expanded(flex: 2, child: _buildGalleryContainer(isTablet)),
-                    Expanded(
-                      flex: 1,
-                      child: SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        child: Padding(
-                          padding: EdgeInsets.all(isTablet ? 16 : 12),
-                          child: _buildFoodInfo(isTablet),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else
-              Expanded(
-                child: Column(
-                  children: [
-                    Expanded(child: _buildGalleryContainer(isTablet)),
-                    _buildFoodInfo(isTablet),
-                  ],
-                ),
-              ),
-          ],
-        ),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 280,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
+        childAspectRatio: 0.72,
       ),
+      itemCount: _filteredProducts.length,
+      itemBuilder: (context, index) {
+        final product = _filteredProducts[index];
+        return ProductCard(product: product);
+      },
     );
   }
 
@@ -284,7 +276,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
               ],
             ),
           ),
-          // Toggle categories on small screens; keep hidden on tablets
           if (!isTablet)
             IconButton(
               icon: Icon(
@@ -411,14 +402,31 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   ],
                 ),
               ),
-              child: Text(
-                _filteredProducts[_currentPage].title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _filteredProducts[_currentPage].title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _filteredProducts[_currentPage].price.trim().isEmpty
+                        ? '—'
+                        : _filteredProducts[_currentPage].price,
+                    style: const TextStyle(
+                      color: Color(AppConstants.goldAccentValue),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
           ),
@@ -519,6 +527,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     if (_filteredProducts.isEmpty) return const SizedBox.shrink();
 
     final product = _filteredProducts[_currentPage];
+    final priceText = product.price.trim().isEmpty ? '—' : product.price.trim();
 
     return Container(
       margin: EdgeInsets.all(isTablet ? 24 : 16),
@@ -538,7 +547,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'About Our ${product.title}',
+            product.title,
             style: TextStyle(
               fontSize: isTablet ? 20 : 16,
               fontWeight: FontWeight.bold,
@@ -592,7 +601,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   ),
                 ),
                 Text(
-                  product.price,
+                  priceText,
                   style: TextStyle(
                     fontSize: isTablet ? 22 : 18,
                     fontWeight: FontWeight.bold,
