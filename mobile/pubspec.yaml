@@ -1,7 +1,7 @@
 name: il_mio_cioccolato
 description: Il Mio Cioccolato - Mobile Gallery App
 publish_to: 'none'
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -13,6 +13,8 @@ dependencies:
   provider: ^6.1.1
   cached_network_image: ^3.3.0
   flutter_spinkit: ^5.2.0
+  package_info_plus: ^8.1.2
+  ota_update: ^7.0.2
 
 dev_dependencies:
   flutter_test:

@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/gallery_screen.dart';
+import 'services/app_updater.dart';
 import 'utils/constants.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Set preferred orientations
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
   ]);
 
-  // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -25,12 +24,35 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _navKey.currentContext;
+      if (ctx != null) AppUpdater.instance.start(ctx);
+    });
+  }
+
+  @override
+  void dispose() {
+    AppUpdater.instance.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navKey,
       title: 'Il mio cioccolato',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -71,7 +93,6 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      // GalleryScreen: idle slideshow (name + price) → tap opens menu grid with Back
       home: const GalleryScreen(),
     );
   }

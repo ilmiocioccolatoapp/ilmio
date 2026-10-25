@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const fs = require('fs');
 const connectDB = require('./config/database');
 
 // Load env vars
@@ -47,6 +48,27 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));
 
+// Tablet app version. Menu data does not need this — only new APK builds.
+app.get('/api/app-version', (req, res) => {
+  let manifest = {
+    version: '1.0.1',
+    build: 2,
+    apkUrl: '',
+    notes: ''
+  };
+  try {
+    const raw = fs.readFileSync(path.join(__dirname, 'app-version.json'), 'utf8');
+    manifest = { ...manifest, ...JSON.parse(raw) };
+  } catch (err) {
+    console.error('app-version.json unreadable:', err.message);
+  }
+  if (process.env.APP_VERSION) manifest.version = process.env.APP_VERSION;
+  if (process.env.APP_BUILD) manifest.build = Number(process.env.APP_BUILD);
+  if (process.env.APP_APK_URL) manifest.apkUrl = process.env.APP_APK_URL;
+
+  res.json({ success: true, data: manifest });
+});
+
 // Root route
 app.get('/', (req, res) => {
   res.json({
@@ -55,7 +77,8 @@ app.get('/', (req, res) => {
     endpoints: {
       products: '/api/products',
       availableProducts: '/api/products/available',
-      categories: '/api/categories'
+      categories: '/api/categories',
+      appVersion: '/api/app-version'
     }
   });
 });
