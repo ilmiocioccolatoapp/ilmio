@@ -19,8 +19,12 @@ class _GalleryScreenState extends State<GalleryScreen> {
   final ApiService _apiService = ApiService();
   final PageController _pageController = PageController();
   Timer? _autoAdvanceTimer;
+  Timer? _idleTimer;
   Timer? _collapseCategoriesTimer;
   bool _showCategories = false;
+
+  /// true = interactive menu grid; false = attract mode (auto slideshow)
+  bool _menuMode = false;
 
   List<Product> _allProducts = [];
   List<Product> _filteredProducts = [];
@@ -29,6 +33,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
   String? _errorMessage;
   int _currentPage = 0;
   String _selectedCategory = 'all';
+
+  /// How long without touch before returning to attract mode
+  static const Duration _idleTimeout = Duration(seconds: 45);
 
   @override
   void initState() {
@@ -40,6 +47,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
   void dispose() {
     _pageController.dispose();
     _autoAdvanceTimer?.cancel();
+    _idleTimer?.cancel();
     _collapseCategoriesTimer?.cancel();
     super.dispose();
   }
@@ -64,7 +72,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
           _filteredProducts = products;
           _isLoading = false;
         });
-        _startAutoAdvance();
+        _startAttractMode();
       }
     } catch (e) {
       if (mounted) {
@@ -80,28 +88,76 @@ class _GalleryScreenState extends State<GalleryScreen> {
     await _loadData();
   }
 
-  void _startAutoAdvance() {
+  /// Full-screen slideshow: continuously cycles product image + name + price
+  void _startAttractMode() {
     _autoAdvanceTimer?.cancel();
-    // No carousel auto-advance on tablet grid layouts
-    final width = MediaQuery.sizeOf(context).width;
-    if (width >= 700) return;
+    _idleTimer?.cancel();
+
+    if (_menuMode) return;
+    if (_filteredProducts.isEmpty) return;
 
     _autoAdvanceTimer =
         Timer.periodic(AppConstants.autoAdvanceDuration, (timer) {
-      if (_filteredProducts.isNotEmpty &&
-          mounted &&
-          _pageController.hasClients) {
-        final nextPage = (_currentPage + 1) % _filteredProducts.length;
-        _pageController.animateToPage(
-          nextPage,
-          duration: AppConstants.pageTransitionDuration,
-          curve: Curves.easeInOut,
-        );
-      }
+      if (!mounted || _menuMode || _filteredProducts.isEmpty) return;
+      if (!_pageController.hasClients) return;
+
+      final nextPage = (_currentPage + 1) % _filteredProducts.length;
+      _pageController.animateToPage(
+        nextPage,
+        duration: AppConstants.pageTransitionDuration,
+        curve: Curves.easeInOut,
+      );
     });
   }
 
+  void _enterMenuMode() {
+    if (_menuMode) {
+      _resetIdleTimer();
+      return;
+    }
+    setState(() {
+      _menuMode = true;
+      _showCategories = true;
+    });
+    _autoAdvanceTimer?.cancel();
+    _resetIdleTimer();
+  }
+
+  void _exitMenuMode() {
+    if (!_menuMode) return;
+    setState(() {
+      _menuMode = false;
+      _showCategories = false;
+      _selectedCategory = 'all';
+      _filteredProducts = _allProducts;
+      _currentPage = 0;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pageController.hasClients && _filteredProducts.isNotEmpty) {
+        _pageController.jumpToPage(0);
+      }
+      _startAttractMode();
+    });
+  }
+
+  void _resetIdleTimer() {
+    _idleTimer?.cancel();
+    if (!_menuMode) return;
+    _idleTimer = Timer(_idleTimeout, () {
+      if (mounted) _exitMenuMode();
+    });
+  }
+
+  void _onUserInteraction([_]) {
+    if (_menuMode) {
+      _resetIdleTimer();
+    } else {
+      _enterMenuMode();
+    }
+  }
+
   void _filterByCategory(String categoryId) {
+    _onUserInteraction();
     setState(() {
       _selectedCategory = categoryId;
       if (categoryId == 'all') {
@@ -114,46 +170,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
       }
       _currentPage = 0;
     });
-
-    if (_filteredProducts.isNotEmpty && _pageController.hasClients) {
-      _pageController.jumpToPage(0);
-    }
-    _startAutoAdvance();
-
-    setState(() {
-      _showCategories = true;
-    });
-    _collapseCategoriesTimer?.cancel();
-    _collapseCategoriesTimer = Timer(const Duration(milliseconds: 1400), () {
-      if (mounted) {
-        setState(() {
-          _showCategories = false;
-        });
-      }
-    });
-  }
-
-  void _navigateToPage(int index) {
-    if (_pageController.hasClients) {
-      _pageController.animateToPage(
-        index,
-        duration: AppConstants.pageTransitionDuration,
-        curve: Curves.easeInOut,
-      );
-      _startAutoAdvance();
-    }
-  }
-
-  void _previousImage() {
-    if (_currentPage > 0) {
-      _navigateToPage(_currentPage - 1);
-    }
-  }
-
-  void _nextImage() {
-    if (_currentPage < _filteredProducts.length - 1) {
-      _navigateToPage(_currentPage + 1);
-    }
   }
 
   @override
@@ -169,42 +185,194 @@ class _GalleryScreenState extends State<GalleryScreen> {
             ? _buildLoadingState()
             : _errorMessage != null
                 ? _buildErrorState()
-                : Column(
-                    children: [
-                      _buildHeader(isTablet),
-                      Expanded(
-                        child: RefreshIndicator(
-                          onRefresh: _loadProducts,
-                          color: const Color(AppConstants.primaryColorValue),
-                          child: _buildMainContent(isTablet),
+                : Listener(
+                    behavior: HitTestBehavior.translucent,
+                    onPointerDown: _onUserInteraction,
+                    child: Column(
+                      children: [
+                        _buildHeader(isTablet),
+                        Expanded(
+                          child: RefreshIndicator(
+                            onRefresh: () async {
+                              _onUserInteraction();
+                              await _loadProducts();
+                            },
+                            color: const Color(AppConstants.primaryColorValue),
+                            child: _buildMainContent(isTablet),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
       ),
     );
   }
 
   Widget _buildMainContent(bool isTablet) {
-    final width = MediaQuery.of(context).size.width;
-    final isWide = width >= 700; // tablet / landscape
+    if (_filteredProducts.isEmpty) {
+      return Column(
+        children: [
+          const SizedBox(height: 10),
+          if (_menuMode) _buildCategoryButtons(true),
+          Expanded(child: _buildEmptyState()),
+        ],
+      );
+    }
 
+    // Attract mode: continuous full-screen name + price slideshow
+    if (!_menuMode) {
+      return _buildAttractMode();
+    }
+
+    // Menu mode: interactive category chips + product grid
     return Column(
       children: [
         const SizedBox(height: 10),
-        _buildCategoryButtons(isTablet || isWide),
+        _buildCategoryButtons(true),
         const SizedBox(height: 8),
-        Expanded(
-          child: _filteredProducts.isEmpty
-              ? _buildEmptyState()
-              : isWide
-                  ? _buildProductGrid()
-                  : Column(
-                      children: [
-                        Expanded(child: _buildGalleryContainer(isTablet)),
-                        _buildFoodInfo(isTablet),
-                      ],
+        Expanded(child: _buildProductGrid()),
+      ],
+    );
+  }
+
+  /// Idle / attract: big image with name + price, auto-advances
+  Widget _buildAttractMode() {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        PageView.builder(
+          controller: _pageController,
+          onPageChanged: (index) {
+            setState(() => _currentPage = index);
+          },
+          itemCount: _filteredProducts.length,
+          itemBuilder: (context, index) {
+            return _buildAttractSlide(_filteredProducts[index]);
+          },
+        ),
+        // Subtle hint
+        Positioned(
+          bottom: 28,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(
+            child: Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Text(
+                  'Tap anywhere to browse the menu',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAttractSlide(Product product) {
+    final imageUrl = getSizedImageUrl(product.image, context);
+    final priceText =
+        product.price.trim().isEmpty ? '—' : product.price.trim();
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        CachedNetworkImage(
+          imageUrl: imageUrl,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => Container(
+            color: const Color(AppConstants.darkBrownValue)
+                .withValues(alpha: 0.12),
+            child: const Center(
+              child: SpinKitFoldingCube(
+                color: Color(AppConstants.primaryColorValue),
+                size: 50.0,
+              ),
+            ),
+          ),
+          errorWidget: (context, url, error) => Container(
+            color: const Color(0xFFF3E9DC),
+            child: const Icon(Icons.image_not_supported_outlined, size: 48),
+          ),
+        ),
+        // Gradient for text readability
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 220,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  const Color(AppConstants.darkBrownValue)
+                      .withValues(alpha: 0.88),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Name + price
+        Positioned(
+          left: 32,
+          right: 32,
+          bottom: 72,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                product.title,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w800,
+                  height: 1.15,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(AppConstants.goldAccentValue),
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.25),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
+                  ],
+                ),
+                child: Text(
+                  priceText,
+                  style: const TextStyle(
+                    color: Color(AppConstants.darkBrownValue),
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -223,7 +391,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
       itemCount: _filteredProducts.length,
       itemBuilder: (context, index) {
         final product = _filteredProducts[index];
-        return ProductCard(product: product);
+        return ProductCard(
+          product: product,
+          onTap: _onUserInteraction,
+        );
       },
     );
   }
@@ -248,6 +419,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
       ),
       child: Row(
         children: [
+          if (_menuMode)
+            IconButton(
+              tooltip: 'Back to slideshow',
+              icon: const Icon(Icons.slideshow_rounded, color: Colors.white),
+              onPressed: _exitMenuMode,
+            )
+          else
+            const SizedBox(width: 48),
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -267,27 +446,20 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     letterSpacing: 0.4,
                   ),
                 ),
-                const SizedBox(width: 6),
-                const Icon(
-                  Icons.coffee,
-                  color: Color(AppConstants.goldAccentValue),
-                  size: 20,
-                ),
               ],
             ),
           ),
-          if (!isTablet)
+          if (_menuMode)
             IconButton(
-              icon: Icon(
-                _showCategories ? Icons.expand_less : Icons.expand_more,
-                color: Colors.white,
-              ),
-              onPressed: () {
-                _collapseCategoriesTimer?.cancel();
-                setState(() {
-                  _showCategories = !_showCategories;
-                });
-              },
+              tooltip: 'Browse menu',
+              icon: const Icon(Icons.grid_view_rounded, color: Colors.white),
+              onPressed: _onUserInteraction,
+            )
+          else
+            IconButton(
+              tooltip: 'Open menu',
+              icon: const Icon(Icons.touch_app_rounded, color: Colors.white),
+              onPressed: _enterMenuMode,
             ),
         ],
       ),
@@ -295,12 +467,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Widget _buildCategoryButtons(bool isTablet) {
-    if (_categories.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final showCategories = isTablet || _showCategories;
-    if (!showCategories) return const SizedBox.shrink();
+    if (_categories.isEmpty) return const SizedBox.shrink();
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -352,266 +519,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
             ),
           );
         }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildGalleryContainer(bool isTablet) {
-    if (_filteredProducts.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          PageView.builder(
-            controller: _pageController,
-            onPageChanged: (index) {
-              setState(() {
-                _currentPage = index;
-              });
-              _startAutoAdvance();
-            },
-            itemCount: _filteredProducts.length,
-            itemBuilder: (context, index) {
-              return _buildMainImage(_filteredProducts[index]);
-            },
-          ),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    const Color(AppConstants.darkBrownValue)
-                        .withValues(alpha: 0.8),
-                  ],
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _filteredProducts[_currentPage].title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _filteredProducts[_currentPage].price.trim().isEmpty
-                        ? '—'
-                        : _filteredProducts[_currentPage].price,
-                    style: const TextStyle(
-                      color: Color(AppConstants.goldAccentValue),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_currentPage > 0)
-            Positioned(
-              left: 20,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: _buildNavButton(
-                  Icons.chevron_left,
-                  _previousImage,
-                ),
-              ),
-            ),
-          if (_currentPage < _filteredProducts.length - 1)
-            Positioned(
-              right: 20,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: _buildNavButton(
-                  Icons.chevron_right,
-                  _nextImage,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMainImage(Product product) {
-    final imageUrl = getSizedImageUrl(product.image, context);
-
-    return CachedNetworkImage(
-      imageUrl: imageUrl,
-      fit: BoxFit.cover,
-      placeholder: (context, url) => Container(
-        color: const Color(AppConstants.darkBrownValue).withValues(alpha: 0.1),
-        child: const Center(
-          child: SpinKitFoldingCube(
-            color: Color(AppConstants.primaryColorValue),
-            size: 50.0,
-          ),
-        ),
-      ),
-      errorWidget: (context, url, error) => Container(
-        color: const Color(AppConstants.darkBrownValue).withValues(alpha: 0.1),
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.broken_image,
-              size: 60,
-              color: Color(AppConstants.darkBrownValue),
-            ),
-            SizedBox(height: 10),
-            Text(
-              'Image not available',
-              style: TextStyle(
-                color: Color(AppConstants.darkBrownValue),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavButton(IconData icon, VoidCallback onPressed) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.7),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Icon(
-          icon,
-          color: const Color(AppConstants.darkBrownValue),
-          size: 24,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFoodInfo(bool isTablet) {
-    if (_filteredProducts.isEmpty) return const SizedBox.shrink();
-
-    final product = _filteredProducts[_currentPage];
-    final priceText = product.price.trim().isEmpty ? '—' : product.price.trim();
-
-    return Container(
-      margin: EdgeInsets.all(isTablet ? 24 : 16),
-      padding: EdgeInsets.all(isTablet ? 24 : 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            product.title,
-            style: TextStyle(
-              fontSize: isTablet ? 20 : 16,
-              fontWeight: FontWeight.bold,
-              color: const Color(AppConstants.primaryColorValue),
-            ),
-          ),
-          SizedBox(height: isTablet ? 12 : 8),
-          Text(
-            product.description,
-            style: TextStyle(
-              fontSize: isTablet ? 16 : 13,
-              color: Colors.grey[800],
-              height: 1.4,
-            ),
-            maxLines: isTablet ? 4 : 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          SizedBox(height: isTablet ? 16 : 12),
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: isTablet ? 20 : 16,
-              vertical: isTablet ? 14 : 10,
-            ),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(AppConstants.goldAccentValue),
-                  const Color(AppConstants.goldAccentValue)
-                      .withValues(alpha: 0.8),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(AppConstants.goldAccentValue)
-                      .withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Price',
-                  style: TextStyle(
-                    fontSize: isTablet ? 16 : 14,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(AppConstants.darkBrownValue),
-                  ),
-                ),
-                Text(
-                  priceText,
-                  style: TextStyle(
-                    fontSize: isTablet ? 22 : 18,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(AppConstants.darkBrownValue),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
