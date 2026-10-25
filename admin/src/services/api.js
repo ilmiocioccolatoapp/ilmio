@@ -9,9 +9,40 @@ const api = axios.create({
   },
 });
 
-// Products API
+async function uploadImage(file) {
+  const signed = await api.post('/uploads/sign');
+  const creds = signed.data && signed.data.data;
+  if (!creds || !creds.cloudName || !creds.signature) {
+    throw new Error('Could not prepare the image upload.');
+  }
+
+  const body = new FormData();
+  body.append('file', file);
+  body.append('api_key', creds.apiKey);
+  body.append('timestamp', String(creds.timestamp));
+  body.append('signature', creds.signature);
+  body.append('folder', creds.folder);
+
+  const uploaded = await axios.post(
+    `https://api.cloudinary.com/v1_1/${creds.cloudName}/image/upload`,
+    body
+  );
+
+  return {
+    image: uploaded.data.secure_url,
+    imagePublicId: uploaded.data.public_id,
+  };
+}
+
+async function withImage(fields, file) {
+  const payload = { ...fields };
+  if (file) {
+    Object.assign(payload, await uploadImage(file));
+  }
+  return payload;
+}
+
 export const productService = {
-  // Get all products
   getAllProducts: async () => {
     try {
       const response = await api.get('/products');
@@ -21,7 +52,6 @@ export const productService = {
     }
   },
 
-  // Get available products
   getAvailableProducts: async () => {
     try {
       const response = await api.get('/products/available');
@@ -31,38 +61,26 @@ export const productService = {
     }
   },
 
-  // Create product
-  createProduct: async (productData) => {
+  createProduct: async ({ fields, file }) => {
     try {
-      const config = {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      };
-      const response = await api.post('/products', productData, config);
+      const payload = await withImage(fields, file);
+      const response = await api.post('/products', payload);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
     }
   },
 
-  // Update product
-  updateProduct: async (id, productData) => {
+  updateProduct: async (id, { fields, file }) => {
     try {
-      const config = {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      };
-      const response = await api.put(`/products/${id}`, productData, config);
+      const payload = await withImage(fields, file);
+      const response = await api.put(`/products/${id}`, payload);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
     }
   },
 
-
-  // Delete product
   deleteProduct: async (id) => {
     try {
       const response = await api.delete(`/products/${id}`);
@@ -72,7 +90,6 @@ export const productService = {
     }
   },
 
-  // Toggle availability
   toggleAvailability: async (id) => {
     try {
       const response = await api.patch(`/products/${id}/toggle`);
@@ -83,9 +100,7 @@ export const productService = {
   },
 };
 
-// Categories API
 export const categoryService = {
-  // Get all categories
   getAllCategories: async () => {
     try {
       const response = await api.get('/categories');
@@ -95,7 +110,6 @@ export const categoryService = {
     }
   },
 
-  // Create category
   createCategory: async (categoryData) => {
     try {
       const response = await api.post('/categories', categoryData);
@@ -105,7 +119,6 @@ export const categoryService = {
     }
   },
 
-  // Update category
   updateCategory: async (id, categoryData) => {
     try {
       const response = await api.put(`/categories/${id}`, categoryData);
@@ -115,7 +128,6 @@ export const categoryService = {
     }
   },
 
-  // Delete category
   deleteCategory: async (id) => {
     try {
       const response = await api.delete(`/categories/${id}`);
