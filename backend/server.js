@@ -15,40 +15,31 @@ connectDB().catch((err) => {
 
 const app = express();
 
-// Body parser middleware
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// CORS middleware - allow local + Vercel preview/production
 app.use(cors({
-  origin: (origin, callback) => {
-    const allowed = [
-      'http://localhost:3000',
-      'https://ilmioadmin.onrender.com',
-      'https://ilmio-admin.onrender.com',
-      'https://ilmio-admin.vercel.app',
-      'https://ilmio-app.vercel.app',
-      'https://ilmiocioccolato.vercel.app'
-    ];
-    if (!origin || allowed.includes(origin) || /\.vercel\.app$/.test(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, true); // open for now; tighten later
-    }
-  },
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Static folder for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Routes
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));
+app.use('/api/uploads', require('./routes/uploadRoutes'));
 
-// Tablet app version. Menu data does not need this — only new APK builds.
 app.get('/api/app-version', (req, res) => {
   let manifest = {
     version: '1.0.1',
@@ -69,7 +60,6 @@ app.get('/api/app-version', (req, res) => {
   res.json({ success: true, data: manifest });
 });
 
-// Root route
 app.get('/', (req, res) => {
   res.json({
     message: 'Il Mio Cioccolato API',
@@ -78,12 +68,12 @@ app.get('/', (req, res) => {
       products: '/api/products',
       availableProducts: '/api/products/available',
       categories: '/api/categories',
+      uploads: '/api/uploads/sign',
       appVersion: '/api/app-version'
     }
   });
 });
 
-// Error handler middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
 
@@ -107,7 +97,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -115,7 +104,6 @@ app.use((req, res) => {
   });
 });
 
-// Only listen when not running on Vercel serverless
 if (process.env.VERCEL !== '1') {
   const PORT = process.env.PORT || 5001;
   app.listen(PORT, () => {
