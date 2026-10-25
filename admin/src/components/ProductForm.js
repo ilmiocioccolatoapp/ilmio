@@ -25,7 +25,23 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
   };
 
   useEffect(() => {
-    fetchCategories();
+    let cancelled = false;
+
+    const loadCategories = async () => {
+      try {
+        const data = await categoryService.getAllCategories();
+        if (cancelled) return;
+        setCategories(data);
+        if (data.length > 0 && !product) {
+          setFormData(prev => ({ ...prev, category: data[0].id }));
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+
+    loadCategories();
+
     if (product) {
       setFormData({
         title: product.title,
@@ -37,19 +53,11 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
       });
       setImagePreview(product.image);
     }
-  }, [product]);
 
-  const fetchCategories = async () => {
-    try {
-      const data = await categoryService.getAllCategories();
-      setCategories(data);
-      if (data.length > 0 && !product) {
-        setFormData(prev => ({ ...prev, category: data[0].id }));
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
+    return () => {
+      cancelled = true;
+    };
+  }, [product]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -164,10 +172,10 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
           />
           {imagePreview && (
             <div className="image-preview" style={{ marginTop: '10px' }}>
-              <img 
-                src={imagePreview} 
-                alt="Preview" 
-                style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '5px' }} 
+              <img
+                src={imagePreview}
+                alt="Preview"
+                style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '5px' }}
               />
             </div>
           )}
