@@ -1,6 +1,6 @@
 class AppConstants {
-  // API Configuration
-  static const String baseUrl = 'https://ilmiobackend.onrender.com/api';
+  // API Configuration - Vercel production
+  static const String baseUrl = 'https://ilmio-app.vercel.app/api';
   // For local development use: 'http://localhost:5001/api' (iOS simulator)
   // For Android emulator use: 'http://10.0.2.2:5001/api'
   // For physical device use: 'http://YOUR_IP:5001/api'
