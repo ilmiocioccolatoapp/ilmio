@@ -404,8 +404,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + (isTablet ? 8 : 6),
         bottom: isTablet ? 12 : 8,
-        left: isTablet ? 24 : 12,
-        right: isTablet ? 24 : 12,
+        left: isTablet ? 16 : 8,
+        right: isTablet ? 16 : 8,
       ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -419,14 +419,36 @@ class _GalleryScreenState extends State<GalleryScreen> {
       ),
       child: Row(
         children: [
+          // Back button — only in menu mode
           if (_menuMode)
-            IconButton(
-              tooltip: 'Back to slideshow',
-              icon: const Icon(Icons.slideshow_rounded, color: Colors.white),
+            TextButton.icon(
               onPressed: _exitMenuMode,
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.white.withValues(alpha: 0.15),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 14 : 10,
+                  vertical: isTablet ? 10 : 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  side: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.35),
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.arrow_back_rounded, size: 20),
+              label: Text(
+                'Back',
+                style: TextStyle(
+                  fontSize: isTablet ? 15 : 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             )
           else
-            const SizedBox(width: 48),
+            const SizedBox(width: 88),
+
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -437,30 +459,51 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   size: isTablet ? 28 : 18,
                 ),
                 SizedBox(width: isTablet ? 10 : 6),
-                Text(
-                  AppConstants.appName,
-                  style: TextStyle(
-                    fontSize: isTablet ? 24 : 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 0.4,
+                Flexible(
+                  child: Text(
+                    AppConstants.appName,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: isTablet ? 24 : 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 0.4,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          if (_menuMode)
-            IconButton(
-              tooltip: 'Browse menu',
-              icon: const Icon(Icons.grid_view_rounded, color: Colors.white),
-              onPressed: _onUserInteraction,
+
+          // Right side: open menu in attract mode, spacer in menu mode
+          if (!_menuMode)
+            TextButton.icon(
+              onPressed: _enterMenuMode,
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.white.withValues(alpha: 0.15),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 14 : 10,
+                  vertical: isTablet ? 10 : 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  side: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.35),
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.grid_view_rounded, size: 18),
+              label: Text(
+                'Menu',
+                style: TextStyle(
+                  fontSize: isTablet ? 15 : 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             )
           else
-            IconButton(
-              tooltip: 'Open menu',
-              icon: const Icon(Icons.touch_app_rounded, color: Colors.white),
-              onPressed: _enterMenuMode,
-            ),
+            const SizedBox(width: 88),
         ],
       ),
     );
