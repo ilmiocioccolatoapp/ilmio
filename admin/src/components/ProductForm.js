@@ -96,14 +96,11 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
 
     setLoading(true);
     try {
-      const data = new FormData();
-      Object.keys(formData).forEach(key => data.append(key, formData[key]));
-      if (imageFile) data.append('image', imageFile);
-
+      const payload = { fields: formData, file: imageFile };
       if (product) {
-        await productService.updateProduct(product._id, data);
+        await productService.updateProduct(product._id, payload);
       } else {
-        await productService.createProduct(data);
+        await productService.createProduct(payload);
       }
       onSuccess();
     } catch (error) {
