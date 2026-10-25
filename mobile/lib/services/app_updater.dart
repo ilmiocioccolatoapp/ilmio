@@ -17,6 +17,7 @@ class AppUpdater {
   bool _busy = false;
   Timer? _timer;
   OverlayEntry? _banner;
+  final ValueNotifier<String> _message = ValueNotifier<String>('');
 
   void start(BuildContext context) {
     _timer?.cancel();
@@ -73,18 +74,15 @@ class AppUpdater {
           switch (event.status) {
             case OtaStatus.DOWNLOADING:
               final pct = event.value ?? '';
-              _setBanner(
-                pct.isEmpty
-                    ? 'Downloading update $version…'
-                    : 'Downloading update $version… $pct%',
-              );
+              _message.value = pct.isEmpty
+                  ? 'Downloading update $version…'
+                  : 'Downloading update $version… $pct%';
             case OtaStatus.INSTALLING:
-              _setBanner('Tap Install to finish the update.');
+              _message.value = 'Tap Install to finish the update.';
               _busy = false;
             case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
-              _setBanner(
-                'Allow “Install unknown apps” for this app, then reopen it.',
-              );
+              _message.value =
+                  'Allow “Install unknown apps” for this app, then reopen it.';
               _busy = false;
               _hideLater();
             case OtaStatus.DOWNLOAD_ERROR:
@@ -92,7 +90,7 @@ class AppUpdater {
             case OtaStatus.INTERNAL_ERROR:
             case OtaStatus.CANCELED:
             case OtaStatus.ALREADY_RUNNING_ERROR:
-              _setBanner('Update paused. It will try again shortly.');
+              _message.value = 'Update paused. It will try again shortly.';
               _busy = false;
               _hideLater();
           }
@@ -112,7 +110,8 @@ class AppUpdater {
   }
 
   void _showBanner(BuildContext context, String text) {
-    _removeBanner();
+    _message.value = text;
+    if (_banner != null) return;
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
     _banner = OverlayEntry(
@@ -122,26 +121,29 @@ class AppUpdater {
         bottom: 24,
         child: Material(
           color: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            decoration: BoxDecoration(
-              color: const Color(AppConstants.darkBrownValue),
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 12,
-                  offset: Offset(0, 4),
+          child: ValueListenableBuilder<String>(
+            valueListenable: _message,
+            builder: (_, text, __) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(AppConstants.darkBrownValue),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Text(
+                text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
                 ),
-              ],
-            ),
-            child: Text(
-              text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -150,19 +152,6 @@ class AppUpdater {
     );
     overlay.insert(_banner!);
   }
-
-  void _setBanner(String text) {
-    final context = _bannerKey.currentContext;
-    if (context == null) return;
-    // Rebuild by replacing the entry so the message updates.
-    final overlay = Overlay.maybeOf(context, rootOverlay: true);
-    if (overlay == null || _banner == null) return;
-    _banner!.remove();
-    _banner = null;
-    _showBanner(context, text);
-  }
-
-  final GlobalKey _bannerKey = GlobalKey();
 
   void _hideLater() {
     Future.delayed(const Duration(seconds: 8), _removeBanner);
