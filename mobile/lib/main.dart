@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'screens/product_detail_screen.dart';
+import 'screens/gallery_screen.dart';
 import 'utils/constants.dart';
 
 void main() {
@@ -71,7 +71,8 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const ProductDetailScreen(),
+      // GalleryScreen: idle slideshow (name + price) → tap opens menu grid with Back
+      home: const GalleryScreen(),
     );
   }
 }
