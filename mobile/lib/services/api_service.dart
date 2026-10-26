@@ -13,24 +13,27 @@ class ApiService {
     // Return mock data if flag is enabled
     if (useMockData) {
       await Future.delayed(
-          const Duration(seconds: 1)); // Simulate network delay
+        const Duration(seconds: 1),
+      ); // Simulate network delay
       return _getMockProducts();
     }
 
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl${AppConstants.productsEndpoint}'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      ).timeout(
-        const Duration(
-            seconds: 60), // Extra long timeout for Render free tier wake-up
-        onTimeout: () {
-          throw Exception(
-              'Server is waking up (free tier). Please wait and pull down to refresh again.');
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl${AppConstants.productsEndpoint}'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(
+            const Duration(
+              seconds: 60,
+            ), // Extra long timeout for Render free tier wake-up
+            onTimeout: () {
+              throw Exception(
+                'Server is waking up (free tier). Please wait and pull down to refresh again.',
+              );
+            },
+          );
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -53,7 +56,8 @@ class ApiService {
           e.toString().contains('NetworkException') ||
           e.toString().contains('Failed host lookup')) {
         throw Exception(
-            'Cannot connect to server. The backend may be sleeping (free tier takes 30-60 seconds to wake up). Pull down to refresh and try again.');
+          'Cannot connect to server. The backend may be sleeping (free tier takes 30-60 seconds to wake up). Pull down to refresh and try again.',
+        );
       }
       rethrow;
     }
@@ -183,12 +187,12 @@ class ApiService {
 
   Future<Product> fetchProductById(String id) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/products/$id'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/products/$id'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -211,26 +215,29 @@ class ApiService {
     if (useMockData) {
       await Future.delayed(const Duration(milliseconds: 500));
       return [
-        {'id': 'pastries', 'name': 'Pastries', 'icon': '🥐', 'order': 1},
-        {'id': 'drinks', 'name': 'Drinks', 'icon': '☕', 'order': 2},
-        {'id': 'desserts', 'name': 'Desserts', 'icon': '🍰', 'order': 3},
-        {'id': 'specialties', 'name': 'Specialties', 'icon': '⭐', 'order': 4},
+        {'id': 'pastries', 'name': 'Pastries', 'order': 1},
+        {'id': 'drinks', 'name': 'Drinks', 'order': 2},
+        {'id': 'desserts', 'name': 'Desserts', 'order': 3},
+        {'id': 'specialties', 'name': 'Specialties', 'order': 4},
       ];
     }
 
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/categories'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      ).timeout(
-        const Duration(seconds: 60), // Increased timeout for Render free tier
-        onTimeout: () {
-          throw Exception(
-              'Server is waking up. Please try again in 30 seconds.');
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/categories'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(
+            const Duration(
+              seconds: 60,
+            ), // Increased timeout for Render free tier
+            onTimeout: () {
+              throw Exception(
+                'Server is waking up. Please try again in 30 seconds.',
+              );
+            },
+          );
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -247,7 +254,8 @@ class ApiService {
           e.toString().contains('NetworkException') ||
           e.toString().contains('Failed host lookup')) {
         throw Exception(
-            'Cannot connect to server. Backend may be sleeping. Pull to refresh and try again.');
+          'Cannot connect to server. Backend may be sleeping. Pull to refresh and try again.',
+        );
       }
       rethrow;
     }

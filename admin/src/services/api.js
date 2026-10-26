@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { supabase } from '../supabase';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
@@ -8,6 +9,30 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+api.interceptors.request.use(async (config) => {
+  if (!supabase) return config;
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+
+  if (data.session?.access_token) {
+    config.headers.Authorization = `Bearer ${data.session.access_token}`;
+  }
+
+  return config;
+});
+
+export const authService = {
+  getCurrentUser: async () => {
+    try {
+      const response = await api.get('/auth/me');
+      return response.data.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+};
 
 async function uploadImage(file) {
   const signed = await api.post('/uploads/sign');

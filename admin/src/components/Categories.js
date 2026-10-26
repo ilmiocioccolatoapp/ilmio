@@ -119,7 +119,6 @@ const Categories = () => {
       <div className="stats-grid">
         {categories.map(cat => (
           <div key={cat.id} className="stat-card">
-            <div className="stat-icon">{cat.icon}</div>
             <div className="stat-value">{cat.count}</div>
             <div className="stat-label">{cat.name}</div>
             <div style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>

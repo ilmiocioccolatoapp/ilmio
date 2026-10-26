@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { productService, categoryService } from '../services/api';
 
+const getPriceCurrency = (price) => price.trim().startsWith('€') ? '€' : 'AED';
+
+const getPriceAmount = (price) => price.trim().replace(/^(AED|€)\s?/, '');
+
+const formatPrice = (price) => {
+  const currency = getPriceCurrency(price);
+  const amount = getPriceAmount(price);
+  const [whole, fraction = ''] = amount.split('.');
+  const formattedAmount = `${whole}.${fraction.padEnd(2, '0')}`;
+  return currency === 'AED'
+    ? `AED ${formattedAmount}`
+    : `€${formattedAmount}`;
+};
+
 const ProductForm = ({ product, onSuccess, onCancel }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -66,7 +80,9 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
     if (!imageFile && !imagePreview) newErrors.image = 'Image is required';
     if (!formData.description.trim()) newErrors.description = 'Description is required';
     if (!formData.ingredients.trim()) newErrors.ingredients = 'Ingredients are required';
-    if (!formData.price.match(/^(AED|€)\s?\d+\.\d{2}$/)) newErrors.price = 'Price must be in format AED X.XX or €X.XX';
+    if (!/^\d+(?:\.\d{0,2})?$/.test(getPriceAmount(formData.price))) {
+      newErrors.price = 'Enter a price with up to 2 decimal places';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -79,6 +95,16 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
       [name]: type === 'checkbox' ? checked : value
     }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  const handlePriceChange = (e) => {
+    const currency = getPriceCurrency(formData.price);
+    const amount = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      price: currency === 'AED' ? `AED ${amount}` : `€${amount}`
+    }));
+    if (errors.price) setErrors(prev => ({ ...prev, price: '' }));
   };
 
   const handleImageChange = (e) => {
@@ -96,7 +122,10 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
 
     setLoading(true);
     try {
-      const payload = { fields: formData, file: imageFile };
+      const payload = {
+        fields: { ...formData, price: formatPrice(formData.price) },
+        file: imageFile
+      };
       if (product) {
         await productService.updateProduct(product._id, payload);
       } else {
@@ -208,15 +237,19 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
 
         <div className="form-group">
           <label htmlFor="price">Price *</label>
-          <input
-            type="text"
-            id="price"
-            name="price"
-            value={formData.price}
-            onChange={handleChange}
-            className={errors.price ? 'error' : ''}
-            placeholder="AED 0.00"
-          />
+          <div className={`price-input${errors.price ? ' error' : ''}`}>
+            <span>{getPriceCurrency(formData.price)}</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              id="price"
+              name="price"
+              value={getPriceAmount(formData.price)}
+              onChange={handlePriceChange}
+              aria-invalid={Boolean(errors.price)}
+              placeholder="0.00"
+            />
+          </div>
           {errors.price && <span className="error-message">{errors.price}</span>}
         </div>
 

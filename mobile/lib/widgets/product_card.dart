@@ -8,17 +8,12 @@ class ProductCard extends StatelessWidget {
   final Product product;
   final VoidCallback? onTap;
 
-  const ProductCard({
-    super.key,
-    required this.product,
-    this.onTap,
-  });
+  const ProductCard({super.key, required this.product, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final imgUrl = getSizedImageUrl(product.image, context);
-    final priceText =
-        product.price.trim().isEmpty ? '—' : product.price.trim();
+    final priceText = product.price.trim().isEmpty ? '—' : product.price.trim();
 
     return Material(
       color: Colors.transparent,
@@ -83,7 +78,7 @@ class ProductCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            '${product.getCategoryEmoji()} ${product.category}',
+                            product.category,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 11,
@@ -136,12 +131,14 @@ class ProductCard extends StatelessWidget {
                               vertical: 5,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(AppConstants.goldAccentValue)
-                                  .withValues(alpha: 0.18),
+                              color: const Color(
+                                AppConstants.goldAccentValue,
+                              ).withValues(alpha: 0.18),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: const Color(AppConstants.goldAccentValue)
-                                    .withValues(alpha: 0.5),
+                                color: const Color(
+                                  AppConstants.goldAccentValue,
+                                ).withValues(alpha: 0.5),
                               ),
                             ),
                             child: Text(

@@ -37,6 +37,9 @@ DATABASE_URL=postgresql://<user>:<password>@<host>:5432/<db-name>
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+SUPABASE_ADMIN_EMAILS=your-existing-user@example.com
 NODE_ENV=production
 ```
 ⚠️ **Use your actual credentials from Render PostgreSQL and Cloudinary dashboards**
@@ -44,6 +47,8 @@ NODE_ENV=production
 **Admin Panel (ilmio-admin):**
 ```
 REACT_APP_API_URL=https://ilmio-backend.onrender.com/api
+REACT_APP_SUPABASE_URL=https://your-project-ref.supabase.co
+REACT_APP_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 ⚠️ Update URL after backend deploys!
 
@@ -65,6 +70,8 @@ REACT_APP_API_URL=https://ilmio-backend.onrender.com/api
 - [ ] Create test product
 - [ ] Upload test image
 - [ ] Check mobile app works
+- [ ] Confirm login works for the existing Supabase user
+- [ ] Confirm admin write requests require a valid authorized session
 
 ## Step 4: Monitor
 

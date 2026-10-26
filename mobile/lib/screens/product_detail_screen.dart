@@ -49,7 +49,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       if (mounted) {
         setState(() {
           _categories = [
-            {'id': 'all', 'name': 'All Items', 'icon': '🍽️'},
+            {'id': 'all', 'name': 'All Items'},
             ...categories,
           ];
           _allProducts = products;
@@ -76,12 +76,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         _filteredProducts = _allProducts;
       } else {
         _filteredProducts = _allProducts
-            .where((product) =>
-                product.category.toLowerCase() == categoryId.toLowerCase())
+            .where(
+              (product) =>
+                  product.category.toLowerCase() == categoryId.toLowerCase(),
+            )
             .toList();
       }
-      _selectedProduct =
-          _filteredProducts.isNotEmpty ? _filteredProducts.first : null;
+      _selectedProduct = _filteredProducts.isNotEmpty
+          ? _filteredProducts.first
+          : null;
     });
   }
 
@@ -103,8 +106,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             children: [
               SpinKitFoldingCube(color: headerTop, size: 50.0),
               SizedBox(height: 20),
-              Text('Loading...',
-                  style: TextStyle(color: headerTop, fontSize: 16)),
+              Text(
+                'Loading...',
+                style: TextStyle(color: headerTop, fontSize: 16),
+              ),
             ],
           ),
         ),
@@ -122,9 +127,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               children: [
                 const Icon(Icons.error_outline, size: 60, color: Colors.red),
                 const SizedBox(height: 20),
-                const Text('Oops! Something went wrong',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Oops! Something went wrong',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 12),
                 Text(_errorMessage!, style: TextStyle(color: Colors.grey[700])),
                 const SizedBox(height: 30),
@@ -167,11 +173,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   SizedBox(width: 12),
                   Icon(Icons.menu, color: Colors.white),
                   Spacer(),
-                  Text('Il mio cioccolato',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700)),
+                  Text(
+                    'Il mio cioccolato',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   Spacer(),
                   Icon(Icons.search, color: Colors.white),
                   SizedBox(width: 12),
@@ -201,17 +210,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         color: selected ? accent : Colors.transparent,
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(
-                            color: selected
-                                ? accent
-                                : Colors.black.withAlpha((0.06 * 255).round()),
-                            width: 1.2),
+                          color: selected
+                              ? accent
+                              : Colors.black.withAlpha((0.06 * 255).round()),
+                          width: 1.2,
+                        ),
                       ),
                       child: Center(
                         child: Text(
                           cat['name'].toString().toUpperCase(),
                           style: TextStyle(
-                              color: selected ? Colors.white : textPrimary,
-                              fontWeight: FontWeight.w600),
+                            color: selected ? Colors.white : textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
@@ -225,17 +236,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           Expanded(
             child: _filteredProducts.isEmpty || _selectedProduct == null
                 ? const Center(
-                    child: Text("No items found in this category.",
-                        style: TextStyle(fontSize: 18, color: textPrimary)))
-                : LayoutBuilder(builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: SizedBox(
-                        height: constraints.maxHeight,
-                        child: isWide ? _buildWide(theme) : _buildNarrow(theme),
-                      ),
-                    );
-                  }),
+                    child: Text(
+                      "No items found in this category.",
+                      style: TextStyle(fontSize: 18, color: textPrimary),
+                    ),
+                  )
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: SizedBox(
+                          height: constraints.maxHeight,
+                          child: isWide
+                              ? _buildWide(theme)
+                              : _buildNarrow(theme),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -282,9 +300,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(product.title,
-                      style: theme.textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  Text(
+                    product.title,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Text(product.ingredients, style: theme.textTheme.bodyMedium),
                   const SizedBox(height: 12),
@@ -297,14 +318,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       spacing: 8,
                       runSpacing: 8,
                       children: similar
-                          .map((p) => SizedBox(
-                                width: 140,
-                                child: GestureDetector(
-                                  onTap: () =>
-                                      setState(() => _selectedProduct = p),
-                                  child: _SimilarItemCard(product: p),
-                                ),
-                              ))
+                          .map(
+                            (p) => SizedBox(
+                              width: 140,
+                              child: GestureDetector(
+                                onTap: () =>
+                                    setState(() => _selectedProduct = p),
+                                child: _SimilarItemCard(product: p),
+                              ),
+                            ),
+                          )
                           .toList(),
                     ),
                   ],
@@ -326,65 +349,84 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       children: [
         Container(
           decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withAlpha((0.06 * 255).round()),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6))
-              ]),
+            color: cardColor,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha((0.06 * 255).round()),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
           child: AspectRatio(
             aspectRatio: 16 / 10,
             child: Stack(
               children: [
                 Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Center(
-                        child: ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: CachedNetworkImage(
-                              imageUrl: product.image,
-                              fit: BoxFit.contain,
-                              errorWidget: (ctx, err, stack) => Container(
-                                color: Colors.grey.shade200,
-                                child: const Icon(Icons.broken_image,
-                                    size: 40, color: Colors.black26),
-                              ),
-                            )))),
+                  padding: const EdgeInsets.all(20.0),
+                  child: Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: CachedNetworkImage(
+                        imageUrl: product.image,
+                        fit: BoxFit.contain,
+                        errorWidget: (ctx, err, stack) => Container(
+                          color: Colors.grey.shade200,
+                          child: const Icon(
+                            Icons.broken_image,
+                            size: 40,
+                            color: Colors.black26,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    height: 140,
-                    child: Container(
-                        decoration: const BoxDecoration(
-                            borderRadius: BorderRadius.vertical(
-                                bottom: Radius.circular(18)),
-                            gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Color.fromRGBO(0, 0, 0, 0.35)
-                                ])))),
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: 140,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      borderRadius: BorderRadius.vertical(
+                        bottom: Radius.circular(18),
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Color.fromRGBO(0, 0, 0, 0.35),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
                 Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 18,
-                    child: Center(
-                        child: Text(product.title,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                shadows: [
-                                  Shadow(
-                                      color: Colors.black45,
-                                      offset: Offset(0, 2),
-                                      blurRadius: 6)
-                                ])))),
+                  left: 0,
+                  right: 0,
+                  bottom: 18,
+                  child: Center(
+                    child: Text(
+                      product.title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black45,
+                            offset: Offset(0, 2),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -392,22 +434,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         const SizedBox(height: 16),
         Container(
           decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withAlpha((0.04 * 255).round()),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4))
-              ],
-              border: Border.all(
-                  color: Colors.black.withAlpha((0.03 * 255).round()))),
+            color: cardColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha((0.04 * 255).round()),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            border: Border.all(
+              color: Colors.black.withAlpha((0.03 * 255).round()),
+            ),
+          ),
           padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [
-                CircleAvatar(
+              Row(
+                children: [
+                  CircleAvatar(
                     radius: 26,
                     backgroundColor: Colors.grey.shade200,
                     child: ClipOval(
@@ -422,15 +468,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           color: Colors.black26,
                         ),
                       ),
-                    )),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: Text(product.title,
-                        style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                            color: textPrimary)))
-              ]),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      product.title,
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               Text(product.ingredients, style: theme.textTheme.bodyMedium),
               const SizedBox(height: 12),
@@ -440,20 +492,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 Text('Similar Items', style: theme.textTheme.titleLarge),
                 const SizedBox(height: 12),
                 GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: similar.length,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 10,
-                            childAspectRatio: 0.72),
-                    itemBuilder: (context, index) => GestureDetector(
-                          onTap: () =>
-                              setState(() => _selectedProduct = similar[index]),
-                          child: _SimilarItemCard(product: similar[index]),
-                        )),
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: similar.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 0.72,
+                  ),
+                  itemBuilder: (context, index) => GestureDetector(
+                    onTap: () =>
+                        setState(() => _selectedProduct = similar[index]),
+                    child: _SimilarItemCard(product: similar[index]),
+                  ),
+                ),
               ],
             ],
           ),
@@ -476,46 +529,63 @@ class _SimilarItemCard extends StatelessWidget {
         border: Border.all(color: Colors.black.withAlpha((0.03 * 255).round())),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withAlpha((0.03 * 255).round()),
-              blurRadius: 8,
-              offset: const Offset(0, 4))
+            color: Colors.black.withAlpha((0.03 * 255).round()),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       padding: const EdgeInsets.all(10),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        ClipRRect(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: AspectRatio(
-                aspectRatio: 1.6 / 1,
-                child: CachedNetworkImage(
-                  imageUrl: product.image,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  errorWidget: (ctx, err, stack) => Container(
-                    color: Colors.grey.shade200,
-                    child: const Icon(Icons.broken_image,
-                        size: 28, color: Colors.black26),
+              aspectRatio: 1.6 / 1,
+              child: CachedNetworkImage(
+                imageUrl: product.image,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                errorWidget: (ctx, err, stack) => Container(
+                  color: Colors.grey.shade200,
+                  child: const Icon(
+                    Icons.broken_image,
+                    size: 28,
+                    color: Colors.black26,
                   ),
-                ))),
-        const SizedBox(height: 8),
-        Text(product.title,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            product.title,
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
             maxLines: 1,
-            overflow: TextOverflow.ellipsis),
-        const SizedBox(height: 4),
-        Text(product.ingredients,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            product.ingredients,
             style: TextStyle(
-                fontSize: 12,
-                color: Colors.black.withAlpha((0.6 * 255).round())),
+              fontSize: 12,
+              color: Colors.black.withAlpha((0.6 * 255).round()),
+            ),
             maxLines: 1,
-            overflow: TextOverflow.ellipsis),
-        const Spacer(),
-        Text(product.price,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const Spacer(),
+          Text(
+            product.price,
             style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Color(0xFFC79A57),
-                fontSize: 14)),
-      ]),
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFC79A57),
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

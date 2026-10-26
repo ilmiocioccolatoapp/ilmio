@@ -17,11 +17,8 @@ class GalleryScreen extends StatefulWidget {
 
 class _GalleryScreenState extends State<GalleryScreen> {
   final ApiService _apiService = ApiService();
-  final PageController _pageController = PageController();
   Timer? _autoAdvanceTimer;
   Timer? _idleTimer;
-  Timer? _collapseCategoriesTimer;
-  bool _showCategories = false;
 
   /// true = interactive menu grid; false = attract mode (auto slideshow)
   bool _menuMode = false;
@@ -45,10 +42,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   @override
   void dispose() {
-    _pageController.dispose();
     _autoAdvanceTimer?.cancel();
     _idleTimer?.cancel();
-    _collapseCategoriesTimer?.cancel();
     super.dispose();
   }
 
@@ -65,11 +60,12 @@ class _GalleryScreenState extends State<GalleryScreen> {
       if (mounted) {
         setState(() {
           _categories = [
-            {'id': 'all', 'name': 'All Items', 'icon': '🍽️'},
+            {'id': 'all', 'name': 'All Items'},
             ...categories,
           ];
           _allProducts = products;
           _filteredProducts = products;
+          _currentPage = 0;
           _isLoading = false;
         });
         _startAttractMode();
@@ -96,17 +92,13 @@ class _GalleryScreenState extends State<GalleryScreen> {
     if (_menuMode) return;
     if (_filteredProducts.isEmpty) return;
 
-    _autoAdvanceTimer =
-        Timer.periodic(AppConstants.autoAdvanceDuration, (timer) {
+    _autoAdvanceTimer = Timer.periodic(AppConstants.autoAdvanceDuration, (
+      timer,
+    ) {
       if (!mounted || _menuMode || _filteredProducts.isEmpty) return;
-      if (!_pageController.hasClients) return;
-
-      final nextPage = (_currentPage + 1) % _filteredProducts.length;
-      _pageController.animateToPage(
-        nextPage,
-        duration: AppConstants.pageTransitionDuration,
-        curve: Curves.easeInOut,
-      );
+      setState(() {
+        _currentPage = (_currentPage + 1) % _filteredProducts.length;
+      });
     });
   }
 
@@ -117,7 +109,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
     setState(() {
       _menuMode = true;
-      _showCategories = true;
     });
     _autoAdvanceTimer?.cancel();
     _resetIdleTimer();
@@ -127,15 +118,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
     if (!_menuMode) return;
     setState(() {
       _menuMode = false;
-      _showCategories = false;
       _selectedCategory = 'all';
       _filteredProducts = _allProducts;
       _currentPage = 0;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_pageController.hasClients && _filteredProducts.isNotEmpty) {
-        _pageController.jumpToPage(0);
-      }
       _startAttractMode();
     });
   }
@@ -164,8 +151,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
         _filteredProducts = _allProducts;
       } else {
         _filteredProducts = _allProducts
-            .where((product) =>
-                product.category.toLowerCase() == categoryId.toLowerCase())
+            .where(
+              (product) =>
+                  product.category.toLowerCase() == categoryId.toLowerCase(),
+            )
             .toList();
       }
       _currentPage = 0;
@@ -184,26 +173,26 @@ class _GalleryScreenState extends State<GalleryScreen> {
         child: _isLoading
             ? _buildLoadingState()
             : _errorMessage != null
-                ? _buildErrorState()
-                : Listener(
-                    behavior: HitTestBehavior.translucent,
-                    onPointerDown: _onUserInteraction,
-                    child: Column(
-                      children: [
-                        _buildHeader(isTablet),
-                        Expanded(
-                          child: RefreshIndicator(
-                            onRefresh: () async {
-                              _onUserInteraction();
-                              await _loadProducts();
-                            },
-                            color: const Color(AppConstants.primaryColorValue),
-                            child: _buildMainContent(isTablet),
-                          ),
-                        ),
-                      ],
+            ? _buildErrorState()
+            : Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: _onUserInteraction,
+                child: Column(
+                  children: [
+                    _buildHeader(isTablet),
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: () async {
+                          _onUserInteraction();
+                          await _loadProducts();
+                        },
+                        color: const Color(AppConstants.primaryColorValue),
+                        child: _buildMainContent(isTablet),
+                      ),
                     ),
-                  ),
+                  ],
+                ),
+              ),
       ),
     );
   }
@@ -240,15 +229,16 @@ class _GalleryScreenState extends State<GalleryScreen> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        PageView.builder(
-          controller: _pageController,
-          onPageChanged: (index) {
-            setState(() => _currentPage = index);
-          },
-          itemCount: _filteredProducts.length,
-          itemBuilder: (context, index) {
-            return _buildAttractSlide(_filteredProducts[index]);
-          },
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 900),
+          switchInCurve: Curves.easeIn,
+          switchOutCurve: Curves.easeOut,
+          transitionBuilder: (child, animation) =>
+              FadeTransition(opacity: animation, child: child),
+          child: _buildAttractSlide(
+            _filteredProducts[_currentPage],
+            key: ValueKey(_filteredProducts[_currentPage].id),
+          ),
         ),
         // Subtle hint
         Positioned(
@@ -258,8 +248,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
           child: IgnorePointer(
             child: Center(
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.35),
                   borderRadius: BorderRadius.circular(24),
@@ -280,20 +272,21 @@ class _GalleryScreenState extends State<GalleryScreen> {
     );
   }
 
-  Widget _buildAttractSlide(Product product) {
+  Widget _buildAttractSlide(Product product, {required Key key}) {
     final imageUrl = getSizedImageUrl(product.image, context);
-    final priceText =
-        product.price.trim().isEmpty ? '—' : product.price.trim();
+    final priceText = product.price.trim().isEmpty ? '—' : product.price.trim();
 
     return Stack(
+      key: key,
       fit: StackFit.expand,
       children: [
         CachedNetworkImage(
           imageUrl: imageUrl,
           fit: BoxFit.cover,
           placeholder: (context, url) => Container(
-            color: const Color(AppConstants.darkBrownValue)
-                .withValues(alpha: 0.12),
+            color: const Color(
+              AppConstants.darkBrownValue,
+            ).withValues(alpha: 0.12),
             child: const Center(
               child: SpinKitFoldingCube(
                 color: Color(AppConstants.primaryColorValue),
@@ -319,8 +312,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.transparent,
-                  const Color(AppConstants.darkBrownValue)
-                      .withValues(alpha: 0.88),
+                  const Color(
+                    AppConstants.darkBrownValue,
+                  ).withValues(alpha: 0.88),
                 ],
               ),
             ),
@@ -349,8 +343,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
               ),
               const SizedBox(height: 12),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(AppConstants.goldAccentValue),
                   borderRadius: BorderRadius.circular(28),
@@ -391,10 +387,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       itemCount: _filteredProducts.length,
       itemBuilder: (context, index) {
         final product = _filteredProducts[index];
-        return ProductCard(
-          product: product,
-          onTap: _onUserInteraction,
-        );
+        return ProductCard(product: product, onTap: _onUserInteraction);
       },
     );
   }
@@ -432,9 +425,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
-                  side: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.35),
-                  ),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
                 ),
               ),
               icon: const Icon(Icons.arrow_back_rounded, size: 20),
@@ -450,29 +441,20 @@ class _GalleryScreenState extends State<GalleryScreen> {
             const SizedBox(width: 88),
 
           Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.restaurant_menu,
-                  color: const Color(AppConstants.goldAccentValue),
-                  size: isTablet ? 28 : 18,
-                ),
-                SizedBox(width: isTablet ? 10 : 6),
-                Flexible(
-                  child: Text(
-                    AppConstants.appName,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: isTablet ? 24 : 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 0.4,
+            child: _menuMode
+                ? Center(
+                    child: Text(
+                      AppConstants.appName,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: isTablet ? 24 : 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.4,
+                      ),
                     ),
-                  ),
-                ),
-              ],
-            ),
+                  )
+                : const SizedBox.shrink(),
           ),
 
           // Right side: open menu in attract mode, spacer in menu mode
@@ -488,9 +470,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
-                  side: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.35),
-                  ),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
                 ),
               ),
               icon: const Icon(Icons.grid_view_rounded, size: 18),
@@ -519,7 +499,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
         children: _categories.map((category) {
           final categoryId = category['id'] as String;
           final categoryName = category['name'] as String;
-          final categoryIcon = category['icon'] as String;
           final isActive = categoryId == _selectedCategory;
 
           return Padding(
@@ -540,8 +519,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   boxShadow: isActive
                       ? [
                           BoxShadow(
-                            color: const Color(AppConstants.primaryColorValue)
-                                .withValues(alpha: 0.3),
+                            color: const Color(
+                              AppConstants.primaryColorValue,
+                            ).withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -549,7 +529,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       : [],
                 ),
                 child: Text(
-                  '$categoryIcon $categoryName',
+                  categoryName,
                   style: TextStyle(
                     color: isActive
                         ? Colors.white
@@ -620,10 +600,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
             const SizedBox(height: 12),
             Text(
               _errorMessage ?? 'Unknown error occurred',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[700],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 30),
@@ -658,8 +635,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(AppConstants.goldAccentValue)
-                  .withValues(alpha: 0.1),
+              color: const Color(
+                AppConstants.goldAccentValue,
+              ).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -680,10 +658,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
           const SizedBox(height: 12),
           Text(
             'Try selecting a different category!',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[700],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[700]),
             textAlign: TextAlign.center,
           ),
         ],

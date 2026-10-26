@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const requireAdmin = require('../middleware/requireAdmin');
 const upload = require('../middleware/upload');
 const {
   getProducts,
@@ -23,17 +24,17 @@ function optionalImage(req, res, next) {
 }
 
 router.route('/')
-  .get(getProducts)
-  .post(optionalImage, createProduct);
+  .get(requireAdmin, getProducts)
+  .post(requireAdmin, optionalImage, createProduct);
 
 router.route('/available')
   .get(getAvailableProducts);
 
 router.route('/:id')
-  .put(optionalImage, updateProduct)
-  .delete(deleteProduct);
+  .put(requireAdmin, optionalImage, updateProduct)
+  .delete(requireAdmin, deleteProduct);
 
 router.route('/:id/toggle')
-  .patch(toggleAvailability);
+  .patch(requireAdmin, toggleAvailability);
 
 module.exports = router;

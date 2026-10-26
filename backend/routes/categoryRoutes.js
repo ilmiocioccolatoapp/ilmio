@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const requireAdmin = require('../middleware/requireAdmin');
 const {
   getCategories,
   createCategory,
@@ -9,10 +10,10 @@ const {
 
 router.route('/')
   .get(getCategories)
-  .post(createCategory);
+  .post(requireAdmin, createCategory);
 
 router.route('/:id')
-  .put(updateCategory)
-  .delete(deleteCategory);
+  .put(requireAdmin, updateCategory)
+  .delete(requireAdmin, deleteCategory);
 
 module.exports = router;

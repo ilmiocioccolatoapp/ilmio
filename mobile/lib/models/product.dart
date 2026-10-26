@@ -33,10 +33,12 @@ class Product {
       ingredients: json['ingredients'] ?? '',
       price: json['price'] ?? '€0.00',
       available: json['available'] ?? true,
-      createdAt:
-          DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt:
-          DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+        json['createdAt'] ?? DateTime.now().toIso8601String(),
+      ),
+      updatedAt: DateTime.parse(
+        json['updatedAt'] ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 
@@ -53,20 +55,5 @@ class Product {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
-  }
-
-  String getCategoryEmoji() {
-    switch (category.toLowerCase()) {
-      case 'pastries':
-        return '🥐';
-      case 'drinks':
-        return '☕';
-      case 'desserts':
-        return '🍰';
-      case 'specialties':
-        return '⭐';
-      default:
-        return '🍫';
-    }
   }
 }

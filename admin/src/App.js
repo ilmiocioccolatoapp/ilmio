@@ -1,17 +1,100 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Dashboard from './components/Dashboard';
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
 import Categories from './components/Categories';
 import Settings from './components/Settings';
 import Analytics from './components/Analytics';
+import Login from './components/Login';
+import { authService } from './services/api';
+import { supabase, supabaseConfigured } from './supabase';
 import './styles/App.css';
 
 function App() {
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [adminUser, setAdminUser] = useState(null);
+  const [authorizationError, setAuthorizationError] = useState('');
+  const [signOutError, setSignOutError] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const accessToken = session?.access_token;
+
+  useEffect(() => {
+    if (!supabase) {
+      setAuthLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, nextSession) => {
+        if (!active) return;
+        setSession(nextSession);
+        setAuthLoading(false);
+        setAdminUser(null);
+        setAuthorizationError('');
+      }
+    );
+
+    supabase.auth.getSession()
+      .then(({ data, error }) => {
+        if (!active) return;
+        setSession(data.session);
+        setAuthorizationError(error?.message || '');
+        setAuthLoading(false);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setAuthorizationError(error.message || 'Could not restore your session.');
+        setAuthLoading(false);
+      });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!accessToken) {
+      setAdminUser(null);
+      return undefined;
+    }
+
+    let active = true;
+    setAdminUser(null);
+    authService.getCurrentUser()
+      .then((user) => {
+        if (active) {
+          setAdminUser(user);
+          setAuthorizationError('');
+        }
+      })
+      .catch((error) => {
+        if (!active) return;
+        const message = typeof error === 'string'
+          ? error
+          : error?.error || error?.message || 'Could not verify admin access.';
+        setAuthorizationError(Array.isArray(message) ? message.join(', ') : message);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [accessToken]);
+
+  const handleSignOut = async () => {
+    setSignOutError('');
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) setSignOutError(error.message);
+    } catch (error) {
+      setSignOutError(error.message || 'Could not sign out. Please try again.');
+    }
+  };
 
   const handleAddProduct = () => {
     setEditingProduct(null);
@@ -51,6 +134,41 @@ function App() {
     }
   };
 
+  if (!supabaseConfigured) {
+    return (
+      <Login configError="Supabase is not configured. Set the admin app's Supabase URL and publishable key." />
+    );
+  }
+
+  if (authLoading || (session && !adminUser && !authorizationError)) {
+    return (
+      <main className="auth-page">
+        <div className="auth-loading" role="status">Checking your sign-in...</div>
+      </main>
+    );
+  }
+
+  if (!session) {
+    return <Login authError={authorizationError} />;
+  }
+
+  if (!adminUser) {
+    return (
+      <main className="auth-page">
+        <section className="auth-card" role="alert">
+          <h1>Admin access unavailable</h1>
+          <p className="auth-description">
+            {authorizationError || 'Your account is not authorized to use this admin panel.'}
+          </p>
+          {signOutError && <div className="auth-error">{signOutError}</div>}
+          <button className="btn btn-primary auth-submit" onClick={handleSignOut}>
+            Sign out
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -58,6 +176,13 @@ function App() {
           <div className="logo">
             <span style={{ fontSize: '2rem' }}>👑</span>
             <h1>Il Mio Cioccolato - Admin Panel</h1>
+          </div>
+          <div className="admin-actions">
+            <span className="admin-user">{adminUser.email}</span>
+            {signOutError && <span className="auth-inline-error">{signOutError}</span>}
+            <button className="btn btn-secondary" onClick={handleSignOut}>
+              Sign out
+            </button>
           </div>
         </div>
       </header>
@@ -125,5 +250,3 @@ function App() {
 }
 
 export default App;
-
-

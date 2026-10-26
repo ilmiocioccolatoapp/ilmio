@@ -34,6 +34,9 @@ This method deploys both backend and admin panel automatically.
    CLOUDINARY_CLOUD_NAME=your_cloud_name
    CLOUDINARY_API_KEY=your_api_key
    CLOUDINARY_API_SECRET=your_api_secret
+   SUPABASE_URL=https://your-project-ref.supabase.co
+   SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+   SUPABASE_ADMIN_EMAILS=your-existing-user@example.com
    NODE_ENV=production
    ```
    
@@ -44,6 +47,8 @@ This method deploys both backend and admin panel automatically.
    For **ilmio-admin** service, add:
    ```
    REACT_APP_API_URL=https://ilmio-backend.onrender.com/api
+   REACT_APP_SUPABASE_URL=https://your-project-ref.supabase.co
+   REACT_APP_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
    ```
    *(Replace with your actual backend URL after deployment)*
 
@@ -74,6 +79,9 @@ This method deploys both backend and admin panel automatically.
    CLOUDINARY_CLOUD_NAME=your_cloud_name
    CLOUDINARY_API_KEY=your_api_key
    CLOUDINARY_API_SECRET=your_api_secret
+   SUPABASE_URL=https://your-project-ref.supabase.co
+   SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+   SUPABASE_ADMIN_EMAILS=your-existing-user@example.com
    ```
    
    Get your credentials from:
@@ -99,6 +107,8 @@ This method deploys both backend and admin panel automatically.
 2. **Add Environment Variable**
    ```
    REACT_APP_API_URL=https://ilmio-backend.onrender.com/api
+   REACT_APP_SUPABASE_URL=https://your-project-ref.supabase.co
+   REACT_APP_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
    ```
    *(Use your actual backend URL)*
 
@@ -147,6 +157,7 @@ static const String baseUrl = 'https://ilmio-backend.onrender.com/api';
 - Keep `.env` files in `.gitignore`
 - Regularly rotate API keys and passwords
 - Use HTTPS only (Render provides free SSL)
+- Use only the Supabase publishable key in the browser; never expose a secret or service-role key
 
 ❌ **DON'T:**
 - Commit `.env` files to Git

@@ -36,6 +36,7 @@ app.use(cors({
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/uploads', require('./routes/uploadRoutes'));
@@ -65,6 +66,7 @@ app.get('/', (req, res) => {
     message: 'Il Mio Cioccolato API',
     version: '1.0.0',
     endpoints: {
+      auth: '/api/auth/me',
       products: '/api/products',
       availableProducts: '/api/products/available',
       categories: '/api/categories',

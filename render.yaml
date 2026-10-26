@@ -18,6 +18,12 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_ADMIN_EMAILS
+        sync: false
     healthCheckPath: /
 
   # Admin Panel Static Site
@@ -34,4 +40,8 @@ services:
         destination: /index.html
     envVars:
       - key: REACT_APP_API_URL
+        sync: false
+      - key: REACT_APP_SUPABASE_URL
+        sync: false
+      - key: REACT_APP_SUPABASE_PUBLISHABLE_KEY
         sync: false

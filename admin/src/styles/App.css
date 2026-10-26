@@ -78,7 +78,112 @@ body {
 
 .admin-actions {
   display: flex;
+  align-items: center;
   gap: 15px;
+}
+
+.admin-user {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.auth-inline-error {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(212, 165, 92, 0.2), transparent 38%),
+    var(--bg-main);
+}
+
+.auth-card {
+  width: min(100%, 440px);
+  padding: 40px;
+  background: white;
+  border: 1px solid rgba(92, 61, 46, 0.08);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lg);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  color: var(--primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.auth-brand span {
+  font-size: 1.8rem;
+}
+
+.auth-card h1 {
+  color: var(--dark);
+  font-size: 1.7rem;
+}
+
+.auth-description {
+  margin: 8px 0 24px;
+  color: var(--text-secondary);
+}
+
+.auth-card form {
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-card label {
+  margin: 16px 0 7px;
+  color: var(--dark);
+  font-weight: 600;
+}
+
+.auth-card input {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid #ddd5cc;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.auth-card input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(139, 69, 19, 0.12);
+}
+
+.auth-card input:disabled {
+  background: #f4f1ea;
+}
+
+.auth-error {
+  padding: 12px 14px;
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  border-radius: 8px;
+  background: rgba(244, 67, 54, 0.07);
+  color: #a52218;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.auth-submit {
+  justify-content: center;
+  width: 100%;
+  margin-top: 24px;
+}
+
+.auth-loading {
+  color: var(--secondary);
+  font-size: 1.05rem;
+  font-weight: 600;
 }
 
 /* Container */
@@ -539,6 +644,45 @@ body {
   box-shadow: 0 0 0 4px rgba(139, 69, 19, 0.1);
 }
 
+.form-group .price-input {
+  display: flex;
+  align-items: center;
+  border: 2px solid #eee;
+  border-radius: 8px;
+  background: #fcfcfc;
+  transition: all 0.2s ease;
+}
+
+.price-input:focus-within {
+  border-color: var(--primary);
+  background: white;
+  box-shadow: 0 0 0 4px rgba(139, 69, 19, 0.1);
+}
+
+.price-input.error {
+  border-color: var(--danger);
+}
+
+.price-input span {
+  padding-left: 16px;
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+.form-group .price-input input {
+  flex: 1;
+  width: auto;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.form-group .price-input input:focus {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .image-preview img {
   border-radius: 8px;
   box-shadow: var(--shadow-sm);
@@ -596,5 +740,22 @@ body {
   
   .logo h1 {
     font-size: 1.2rem;
+  }
+
+  .header-inner {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .admin-actions {
+    margin-left: auto;
+  }
+
+  .admin-user {
+    display: none;
+  }
+
+  .auth-card {
+    padding: 30px 24px;
   }
 }

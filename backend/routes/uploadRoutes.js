@@ -1,10 +1,11 @@
 const crypto = require('crypto');
 const express = require('express');
 const router = express.Router();
+const requireAdmin = require('../middleware/requireAdmin');
 
 // Browser uploads the photo straight to Cloudinary.
 // The API only signs the upload so the secret stays on the server.
-router.post('/sign', (req, res) => {
+router.post('/sign', requireAdmin, (req, res) => {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
