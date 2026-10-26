@@ -7,21 +7,26 @@ import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../utils/image_utils.dart';
 import '../widgets/product_card.dart';
+import '../widgets/product_details_page.dart';
 
 class GalleryScreen extends StatefulWidget {
-  const GalleryScreen({super.key});
+  const GalleryScreen({super.key, this.apiService});
+
+  final ApiService? apiService;
 
   @override
   State<GalleryScreen> createState() => _GalleryScreenState();
 }
 
 class _GalleryScreenState extends State<GalleryScreen> {
-  final ApiService _apiService = ApiService();
+  late final ApiService _apiService = widget.apiService ?? ApiService();
   Timer? _autoAdvanceTimer;
   Timer? _idleTimer;
 
   /// true = interactive menu grid; false = attract mode (auto slideshow)
   bool _menuMode = false;
+  bool _viewingProduct = false;
+  PageController? _productPageController;
 
   List<Product> _allProducts = [];
   List<Product> _filteredProducts = [];
@@ -44,6 +49,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
   void dispose() {
     _autoAdvanceTimer?.cancel();
     _idleTimer?.cancel();
+    _productPageController?.dispose();
     super.dispose();
   }
 
@@ -66,9 +72,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
           _allProducts = products;
           _filteredProducts = products;
           _currentPage = 0;
+          _selectedCategory = 'all';
           _isLoading = false;
         });
-        _startAttractMode();
+        if (_menuMode) {
+          _resetIdleTimer();
+        } else {
+          _startAttractMode();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -118,6 +129,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     if (!_menuMode) return;
     setState(() {
       _menuMode = false;
+      _viewingProduct = false;
       _selectedCategory = 'all';
       _filteredProducts = _allProducts;
       _currentPage = 0;
@@ -138,9 +150,33 @@ class _GalleryScreenState extends State<GalleryScreen> {
   void _onUserInteraction([_]) {
     if (_menuMode) {
       _resetIdleTimer();
-    } else {
-      _enterMenuMode();
     }
+  }
+
+  void _openProduct(int index) {
+    _productPageController?.dispose();
+    _productPageController = PageController(initialPage: index);
+    setState(() {
+      _currentPage = index;
+      _viewingProduct = true;
+    });
+    _resetIdleTimer();
+  }
+
+  void _closeProduct() {
+    setState(() => _viewingProduct = false);
+    _resetIdleTimer();
+  }
+
+  void _changeProduct(int direction) {
+    final nextPage = _currentPage + direction;
+    if (nextPage < 0 || nextPage >= _filteredProducts.length) return;
+    _resetIdleTimer();
+    _productPageController?.animateToPage(
+      nextPage,
+      duration: AppConstants.pageTransitionDuration,
+      curve: Curves.easeInOut,
+    );
   }
 
   void _filterByCategory(String categoryId) {
@@ -166,33 +202,156 @@ class _GalleryScreenState extends State<GalleryScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth >= 600;
 
-    return Scaffold(
-      backgroundColor: const Color(AppConstants.backgroundColorValue),
-      body: SafeArea(
-        top: false,
-        child: _isLoading
+    return PopScope(
+      canPop: !_menuMode,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_viewingProduct) {
+          _closeProduct();
+        } else {
+          _exitMenuMode();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(AppConstants.backgroundColorValue),
+        body: _isLoading
             ? _buildLoadingState()
             : _errorMessage != null
-            ? _buildErrorState()
-            : Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: _onUserInteraction,
-                child: Column(
-                  children: [
-                    _buildHeader(isTablet),
-                    Expanded(
-                      child: RefreshIndicator(
-                        onRefresh: () async {
-                          _onUserInteraction();
-                          await _loadProducts();
-                        },
-                        color: const Color(AppConstants.primaryColorValue),
-                        child: _buildMainContent(isTablet),
-                      ),
-                    ),
-                  ],
-                ),
+                ? _buildErrorState()
+                : Listener(
+                    behavior: HitTestBehavior.translucent,
+                    onPointerDown: _onUserInteraction,
+                    onPointerMove: _onUserInteraction,
+                    onPointerUp: _onUserInteraction,
+                    child: !_menuMode
+                        ? (_filteredProducts.isEmpty
+                            ? GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: _enterMenuMode,
+                                child: _buildEmptyState(),
+                              )
+                            : GestureDetector(
+                                onTap: _enterMenuMode,
+                                child: _buildAttractMode(),
+                              ))
+                        : _viewingProduct
+                            ? _buildProductViewer()
+                            : SafeArea(
+                                top: false,
+                                child: Column(
+                                  children: [
+                                    _buildHeader(isTablet),
+                                    Expanded(
+                                      child: RefreshIndicator(
+                                        onRefresh: () async {
+                                          _onUserInteraction();
+                                          await _loadProducts();
+                                        },
+                                        color: const Color(
+                                            AppConstants.primaryColorValue),
+                                        child: _buildMainContent(isTablet),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                  ),
+      ),
+    );
+  }
+
+  Widget _buildProductViewer() {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        PageView.builder(
+          key: const ValueKey('product-viewer'),
+          controller: _productPageController,
+          itemCount: _filteredProducts.length,
+          onPageChanged: (index) {
+            setState(() => _currentPage = index);
+            _resetIdleTimer();
+          },
+          itemBuilder: (context, index) => ProductDetailsPage(
+            product: _filteredProducts[index],
+          ),
+        ),
+        Positioned(
+          left: 24,
+          top: 20,
+          child: SafeArea(
+            bottom: false,
+            child: TextButton.icon(
+              onPressed: _closeProduct,
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.white.withValues(alpha: 0.85),
+                foregroundColor: const Color(AppConstants.darkBrownValue),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               ),
+              icon: const Icon(Icons.arrow_back_rounded, size: 20),
+              label: const Text('Back to menu'),
+            ),
+          ),
+        ),
+        Positioned(
+          right: 32,
+          top: 34,
+          child: SafeArea(
+            bottom: false,
+            child: Text(
+              '${_currentPage + 1} / ${_filteredProducts.length}',
+              style: TextStyle(
+                color: const Color(AppConstants.darkBrownValue)
+                    .withValues(alpha: 0.5),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        if (_filteredProducts.length > 1) ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _buildProductArrow(
+              'Previous product',
+              Icons.chevron_left_rounded,
+              _currentPage > 0 ? () => _changeProduct(-1) : null,
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: _buildProductArrow(
+              'Next product',
+              Icons.chevron_right_rounded,
+              _currentPage < _filteredProducts.length - 1
+                  ? () => _changeProduct(1)
+                  : null,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildProductArrow(
+      String label, IconData icon, VoidCallback? onPressed) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: IconButton.filled(
+        tooltip: label,
+        onPressed: onPressed,
+        iconSize: 34,
+        style: IconButton.styleFrom(
+          minimumSize: const Size(48, 56),
+          backgroundColor: Colors.white.withValues(alpha: 0.65),
+          foregroundColor:
+              const Color(AppConstants.darkBrownValue).withValues(alpha: 0.42),
+          disabledBackgroundColor: Colors.white.withValues(alpha: 0.25),
+          disabledForegroundColor:
+              const Color(AppConstants.darkBrownValue).withValues(alpha: 0.12),
+        ),
+        icon: Icon(icon),
       ),
     );
   }
@@ -387,7 +546,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       itemCount: _filteredProducts.length,
       itemBuilder: (context, index) {
         final product = _filteredProducts[index];
-        return ProductCard(product: product, onTap: _onUserInteraction);
+        return ProductCard(product: product, onTap: () => _openProduct(index));
       },
     );
   }
