@@ -67,9 +67,7 @@ class AppUpdater {
     _showBanner(context, 'Downloading update $version…');
 
     try {
-      OtaUpdate()
-          .execute(url, destinationFilename: 'ilmio-update.apk')
-          .listen(
+      OtaUpdate().execute(url, destinationFilename: 'ilmio-update.apk').listen(
         (OtaEvent event) {
           switch (event.status) {
             case OtaStatus.DOWNLOADING:
@@ -80,6 +78,15 @@ class AppUpdater {
             case OtaStatus.INSTALLING:
               _message.value = 'Tap Install to finish the update.';
               _busy = false;
+            case OtaStatus.INSTALLATION_DONE:
+              _message.value = 'Update installed successfully.';
+              _busy = false;
+              _hideLater();
+            case OtaStatus.INSTALLATION_ERROR:
+              _message.value =
+                  'Update installation failed. It will try again shortly.';
+              _busy = false;
+              _hideLater();
             case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
               _message.value =
                   'Allow “Install unknown apps” for this app, then reopen it.';
