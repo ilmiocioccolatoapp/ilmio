@@ -183,7 +183,7 @@ function App() {
         <div className="header-inner">
           <div className="logo">
             <div className="logo-stamp">
-              <BakerySealIcon className="w-8 h-8" />
+              <BakerySealIcon size={32} />
             </div>
             <div>
               <h1>Il Mio Cioccolato</h1>
