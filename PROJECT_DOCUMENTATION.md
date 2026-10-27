@@ -139,11 +139,12 @@ This system enables Il Mio Cioccolato cafe to:
 │   ├── uploads/                 # Local upload directory
 │   ├── package.json             # Dependencies
 │   ├── server.js                # Entry point
-│   ├── seed.js                  # Database seeder
-│   ├── seed_categories.js       # Category seeder
-│   ├── sync_categories.js       # Category sync utility
-│   ├── update_prices.js         # Price update utility
-│   └── README.md
+│   ├── scripts/                 # Administrative scripts
+│   │   ├── seed.js              # Database seeder
+│   │   ├── seed_categories.js   # Category seeder
+│   │   ├── sync_categories.js   # Category sync utility
+│   │   ├── update_prices.js     # Price update utility
+│   │   └── README.md
 │
 ├── admin/                        # React Admin Panel
 │   ├── public/
@@ -877,8 +878,8 @@ CLOUDINARY_API_SECRET=your_api_secret
 
 5. **Seed database (optional)**:
 ```bash
-node seed.js           # Seed products
-node seed_categories.js # Seed categories
+node scripts/seed.js           # Seed products
+node scripts/seed_categories.js # Seed categories
 ```
 
 6. **Start development server**:

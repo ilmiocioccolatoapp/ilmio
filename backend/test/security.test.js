@@ -32,14 +32,33 @@ function corsRequest(origin, method = 'GET', env = {}) {
     res, () => { forwarded = true; });
   return { res, forwarded };
 }
+const MOCKABLE_MODULES = {
+  '../controllers/productController': {
+    resolve: () => require.resolve('../controllers/productController'),
+    load: () => require('../controllers/productController')
+  },
+  '../controllers/categoryController': {
+    resolve: () => require.resolve('../controllers/categoryController'),
+    load: () => require('../controllers/categoryController')
+  },
+  '../middleware/requireAdmin': {
+    resolve: () => require.resolve('../middleware/requireAdmin'),
+    load: () => require('../middleware/requireAdmin')
+  }
+};
+
 function loadMocked(path, mocks) {
+  const target = MOCKABLE_MODULES[path];
+  if (!target) {
+    throw new Error(`Untrusted or unmapped module path in test mock: ${path}`);
+  }
   const old = Module._load;
   Module._load = function (name, ...args) {
     return Object.hasOwn(mocks, name) ? mocks[name] : old.call(this, name, ...args);
   };
   try {
-    delete require.cache[require.resolve(path)];
-    return require(path);
+    delete require.cache[target.resolve()];
+    return target.load();
   } finally { Module._load = old; }
 }
 

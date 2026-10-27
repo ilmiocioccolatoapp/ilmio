@@ -1,0 +1,3 @@
+# skylos.toml - Skylos static analysis configuration
+# Exclude manual administrative scripts from dead code analysis
+exclude = ["backend/scripts"]

@@ -92,7 +92,9 @@ const getProducts = async (req, res) => {
       if (obj.imagePublicId) {
         try {
           obj.image = cloudinary.url(obj.imagePublicId, { secure: true, fetch_format: 'auto', quality: 'auto' });
-        } catch (e) {}
+        } catch (err) {
+          console.error(`[ProductController] Failed to generate Cloudinary URL for product ${p.id || p.dbId}:`, err.message);
+        }
       }
       return obj;
     });
@@ -129,7 +131,9 @@ const getAvailableProducts = async (req, res) => {
       if (obj.imagePublicId) {
         try {
           obj.image = cloudinary.url(obj.imagePublicId, { secure: true, fetch_format: 'auto', quality: 'auto' });
-        } catch (e) {}
+        } catch (err) {
+          console.error(`[ProductController] Failed to generate Cloudinary URL for product ${p.id || p.dbId}:`, err.message);
+        }
       }
       return obj;
     });

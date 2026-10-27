@@ -20,9 +20,10 @@ int _calculateTargetWidth(BuildContext context) {
 }
 
 String _buildCloudinaryUrl(String url, int width) {
-  final lower = url.toLowerCase();
-  if (lower.contains('res.cloudinary.com') ||
-      lower.contains('cloudinary.com')) {
+  final uri = Uri.tryParse(url);
+  final host = uri?.host.toLowerCase() ?? '';
+  final isCloudinary = host == 'res.cloudinary.com' || host == 'cloudinary.com';
+  if (isCloudinary) {
     final idx = url.indexOf('/upload/');
     if (idx == -1) return url;
 

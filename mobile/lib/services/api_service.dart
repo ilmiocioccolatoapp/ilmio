@@ -187,9 +187,10 @@ class ApiService {
 
   Future<Product> fetchProductById(String id) async {
     try {
+      final encodedId = Uri.encodeComponent(id);
       final response = await http
           .get(
-            Uri.parse('$baseUrl/products/$id'),
+            Uri.parse('$baseUrl/products/$encodedId'),
             headers: {'Content-Type': 'application/json'},
           )
           .timeout(const Duration(seconds: 10));

@@ -19,14 +19,22 @@ router.post('/sign', requireAdmin, (req, res) => {
 
   const timestamp = Math.round(Date.now() / 1000);
   const folder = 'il-mio-cioccolato';
+  const signatureAlgorithm = 'sha256';
   const signature = crypto
-    .createHash('sha1')
+    .createHash('sha256')
     .update(`folder=${folder}&timestamp=${timestamp}${apiSecret}`)
     .digest('hex');
 
   res.json({
     success: true,
-    data: { timestamp, signature, folder, cloudName, apiKey }
+    data: {
+      timestamp,
+      signature,
+      signature_algorithm: signatureAlgorithm,
+      folder,
+      cloudName,
+      apiKey
+    }
   });
 });
 

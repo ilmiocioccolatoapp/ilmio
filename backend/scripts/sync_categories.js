@@ -1,6 +1,7 @@
-const { logError } = require('./utils/errors');
-require('dotenv').config();
-const prisma = require('./config/prisma');
+const path = require('path');
+const { logError } = require('../utils/errors');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+const prisma = require('../config/prisma');
 
 const categories = [
   { id: 'pastries', name: 'Pastries', icon: '🥐', order: 1 },

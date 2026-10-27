@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { productService } from '../services/api';
 
 const Dashboard = ({ onAddProduct }) => {

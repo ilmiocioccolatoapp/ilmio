@@ -1,7 +1,17 @@
 import axios from 'axios';
 import { supabase } from '../supabase';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+const isProduction = process.env.NODE_ENV === 'production';
+let API_URL = process.env.REACT_APP_API_URL;
+
+if (!API_URL) {
+  if (isProduction) {
+    throw new Error('REACT_APP_API_URL environment variable is required in production.');
+  }
+  const defaultHost = 'localhost';
+  const defaultPort = 5001;
+  API_URL = `http://${defaultHost}:${defaultPort}/api`;
+}
 
 const api = axios.create({
   baseURL: API_URL,
