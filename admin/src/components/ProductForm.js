@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { productService, categoryService } from '../services/api';
+import { useCatalog } from '../data/CatalogContext';
 import { CloseIcon } from './Icons';
+import { DIRHAM_SYMBOL } from '../utils/price';
 
 const getPriceCurrency = (price) => price.trim().startsWith('€') ? '€' : 'AED';
 
-const getPriceAmount = (price) => price.trim().replace(/^(AED|€)\s?/, '');
+const getPriceAmount = (price) => price.trim().replace(/^(AED|€|\u20C3)\s*/, '');
 
 const formatPrice = (price) => {
   const currency = getPriceCurrency(price);
@@ -29,7 +30,7 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
   const [imagePreview, setImagePreview] = useState('');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState([]);
+  const { categories, saveProduct } = useCatalog();
 
   const getErrorMessage = (error) => {
     if (!error) return 'Failed to save product';
@@ -40,23 +41,6 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
   };
 
   useEffect(() => {
-    let cancelled = false;
-
-    const loadCategories = async () => {
-      try {
-        const data = await categoryService.getAllCategories();
-        if (cancelled) return;
-        setCategories(data);
-        if (data.length > 0 && !product) {
-          setFormData(prev => ({ ...prev, category: data[0].id }));
-        }
-      } catch (error) {
-        console.error('Error fetching categories:');
-      }
-    };
-
-    loadCategories();
-
     if (product) {
       setFormData({
         title: product.title,
@@ -68,11 +52,21 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
       });
       setImagePreview(product.image);
     }
-
-    return () => {
-      cancelled = true;
-    };
   }, [product]);
+
+  const defaultCategory = categories[0]?.id;
+  useEffect(() => {
+    if (!product && defaultCategory) {
+      setFormData(previous => ({ ...previous, category: defaultCategory }));
+    }
+  }, [product, defaultCategory]);
+
+  useEffect(() => {
+    if (!imageFile) return undefined;
+    const preview = URL.createObjectURL(imageFile);
+    setImagePreview(preview);
+    return () => URL.revokeObjectURL(preview);
+  }, [imageFile]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -112,14 +106,13 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
     const file = e.target.files[0];
     if (file) {
       setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
       if (errors.image) setErrors(prev => ({ ...prev, image: '' }));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (loading || !validateForm()) return;
 
     setLoading(true);
     try {
@@ -127,11 +120,7 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
         fields: { ...formData, price: formatPrice(formData.price) },
         file: imageFile
       };
-      if (product) {
-        await productService.updateProduct(product._id, payload);
-      } else {
-        await productService.createProduct(payload);
-      }
+      await saveProduct(product?._id || product?.dbId || product?.id, payload);
       onSuccess();
     } catch (error) {
       console.error('Error saving product:');
@@ -242,7 +231,9 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
         <div className="form-group">
           <label htmlFor="price">Price *</label>
           <div className={`price-input${errors.price ? ' error' : ''}`}>
-            <span>{getPriceCurrency(formData.price)}</span>
+            <span aria-label={getPriceCurrency(formData.price) === 'AED' ? 'UAE dirhams' : 'Euros'}>
+              {getPriceCurrency(formData.price) === 'AED' ? DIRHAM_SYMBOL : '€'}
+            </span>
             <input
               type="text"
               inputMode="decimal"

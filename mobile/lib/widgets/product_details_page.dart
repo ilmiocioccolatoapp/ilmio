@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/product.dart';
 import '../utils/constants.dart';
 import '../utils/image_utils.dart';
+import 'price_text.dart';
 
 /// The customer detail page, separate from the automatic image slideshow.
 class ProductDetailsPage extends StatelessWidget {
@@ -59,8 +60,8 @@ class ProductDetailsPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  Text(
-                    product.price.trim().isEmpty ? '—' : product.price.trim(),
+                  PriceText(
+                    product.price,
                     style: const TextStyle(
                       color: _accent,
                       fontSize: 26,

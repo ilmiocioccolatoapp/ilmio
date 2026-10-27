@@ -15,6 +15,7 @@ import {
   AnalyticsIcon
 } from './components/Icons';
 import { authService } from './services/api';
+import { CatalogProvider } from './data/CatalogContext';
 import { supabase, supabaseConfigured } from './supabase';
 import './styles/App.css';
 
@@ -27,8 +28,9 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const accessToken = session?.access_token;
+  const userId = session?.user?.id;
+  const authorized = adminUser && adminUser.id === userId;
 
   useEffect(() => {
     if (!supabase) {
@@ -42,23 +44,9 @@ function App() {
         if (!active) return;
         setSession(nextSession);
         setAuthLoading(false);
-        setAdminUser(null);
-        setAuthorizationError('');
+        if (!nextSession) setAuthorizationError('');
       }
     );
-
-    supabase.auth.getSession()
-      .then(({ data, error }) => {
-        if (!active) return;
-        setSession(data.session);
-        setAuthorizationError(error?.message || '');
-        setAuthLoading(false);
-      })
-      .catch((error) => {
-        if (!active) return;
-        setAuthorizationError(error.message || 'Could not restore your session.');
-        setAuthLoading(false);
-      });
 
     return () => {
       active = false;
@@ -73,7 +61,8 @@ function App() {
     }
 
     let active = true;
-    setAdminUser(null);
+    setAdminUser(previous => previous?.id === userId ? previous : null);
+    setAuthorizationError('');
     authService.getCurrentUser()
       .then((user) => {
         if (active) {
@@ -86,13 +75,20 @@ function App() {
         const message = typeof error === 'string'
           ? error
           : error?.error || error?.message || 'Could not verify admin access.';
+        setAdminUser(null);
         setAuthorizationError(Array.isArray(message) ? message.join(', ') : message);
       });
 
     return () => {
       active = false;
     };
-  }, [accessToken]);
+  }, [accessToken, userId]);
+
+  useEffect(() => {
+    setShowForm(false);
+    setEditingProduct(null);
+    setActiveTab('dashboard');
+  }, [userId]);
 
   const handleSignOut = async () => {
     setSignOutError('');
@@ -117,7 +113,6 @@ function App() {
   const handleFormSuccess = () => {
     setShowForm(false);
     setEditingProduct(null);
-    setRefreshTrigger(prev => prev + 1);
   };
 
   const handleFormCancel = () => {
@@ -130,7 +125,7 @@ function App() {
       case 'dashboard':
         return <Dashboard onAddProduct={handleAddProduct} />;
       case 'products':
-        return <ProductList onEdit={handleEditProduct} refreshTrigger={refreshTrigger} />;
+        return <ProductList onEdit={handleEditProduct} />;
       case 'categories':
         return <Categories />;
       case 'settings':
@@ -148,7 +143,7 @@ function App() {
     );
   }
 
-  if (authLoading || (session && !adminUser && !authorizationError)) {
+  if (authLoading || (session && !authorized && !authorizationError)) {
     return (
       <main className="auth-page">
         <div className="auth-loading" role="status">Checking your sign-in...</div>
@@ -160,7 +155,7 @@ function App() {
     return <Login authError={authorizationError} />;
   }
 
-  if (!adminUser) {
+  if (!authorized) {
     return (
       <main className="auth-page">
         <section className="auth-card" role="alert">
@@ -178,6 +173,7 @@ function App() {
   }
 
   return (
+    <CatalogProvider key={adminUser.id}>
     <div className="app">
       <header className="app-header">
         <div className="header-inner">
@@ -264,6 +260,7 @@ function App() {
         />
       )}
     </div>
+    </CatalogProvider>
   );
 }
 

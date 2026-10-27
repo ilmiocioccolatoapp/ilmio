@@ -6,6 +6,7 @@ import '../models/product.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../utils/image_utils.dart';
+import '../widgets/price_text.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_details_page.dart';
 
@@ -433,7 +434,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   Widget _buildAttractSlide(Product product, {required Key key}) {
     final imageUrl = getSizedImageUrl(product.image, context);
-    final priceText = product.price.trim().isEmpty ? '—' : product.price.trim();
 
     return Stack(
       key: key,
@@ -517,8 +517,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     ),
                   ],
                 ),
-                child: Text(
-                  priceText,
+                child: PriceText(
+                  product.price,
                   style: const TextStyle(
                     color: Color(AppConstants.darkBrownValue),
                     fontSize: 26,

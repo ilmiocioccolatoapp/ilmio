@@ -38,16 +38,10 @@ function _validateCategoryInput(payload, { partial = false } = {}) {
 
 const getCategories = async (req, res) => {
   try {
-    const categories = await prisma.category.findMany({
-      orderBy: { order: 'asc' }
-    });
-
-    const grouped = await prisma.product.groupBy({
-      by: ['category'],
-      _count: {
-        _all: true
-      }
-    });
+    const [categories, grouped] = await Promise.all([
+      Promise.resolve().then(() => prisma.category.findMany({ orderBy: { order: 'asc' } })),
+      Promise.resolve().then(() => prisma.product.groupBy({ by: ['category'], _count: { _all: true } }))
+    ]);
 
     const countMap = Object.fromEntries(grouped.map((row) => [row.category, row._count._all]));
 

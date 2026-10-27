@@ -15,13 +15,11 @@ if (!API_URL) {
 
 const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  timeout: 20000,
 });
 
 api.interceptors.request.use(async (config) => {
-  if (!supabase) return config;
+  if (!supabase || config.publicRequest) return config;
 
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
@@ -60,7 +58,8 @@ async function uploadImage(file) {
 
   const uploaded = await axios.post(
     `https://api.cloudinary.com/v1_1/${creds.cloudName}/image/upload`,
-    body
+    body,
+    { timeout: 120000 }
   );
 
   return {
@@ -89,7 +88,7 @@ export const productService = {
 
   getAvailableProducts: async () => {
     try {
-      const response = await api.get('/products/available');
+      const response = await api.get('/products/available', { publicRequest: true });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -138,7 +137,7 @@ export const productService = {
 export const categoryService = {
   getAllCategories: async () => {
     try {
-      const response = await api.get('/categories');
+      const response = await api.get('/categories', { publicRequest: true });
       return response.data.data || [];
     } catch (error) {
       throw error.response?.data || error.message;

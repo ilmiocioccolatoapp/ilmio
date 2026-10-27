@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { productService } from '../services/api';
+import { useCatalog } from '../data/CatalogContext';
 import {
   CatalogTotalIcon,
   AvailableCheckIcon,
@@ -8,51 +7,14 @@ import {
 } from './Icons';
 
 const Dashboard = ({ onAddProduct }) => {
-  const [stats, setStats] = useState({
-    total: 0,
-    available: 0,
-    unavailable: 0,
-    byCategory: {}
+  const { products, productsLoading: loading, productsError, refreshProducts } = useCatalog();
+  const stats = { total: products.length, available: 0, unavailable: 0, byCategory: {} };
+  products.forEach(product => {
+    if (product.available) stats.available++;
+    const category = product.category || 'uncategorized';
+    stats.byCategory[category] = (stats.byCategory[category] || 0) + 1;
   });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const fetchStats = async () => {
-      try {
-        setLoading(true);
-        const response = await productService.getAllProducts();
-        if (cancelled) return;
-        const products = response.data || [];
-
-        const categoryCount = {};
-        let availableCount = 0;
-
-        products.forEach(product => {
-          if (product.available) availableCount++;
-          const cat = product.category || 'uncategorized';
-          categoryCount[cat] = (categoryCount[cat] || 0) + 1;
-        });
-
-        setStats({
-          total: products.length,
-          available: availableCount,
-          unavailable: products.length - availableCount,
-          byCategory: categoryCount
-        });
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    fetchStats();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  stats.unavailable = stats.total - stats.available;
 
   if (loading) {
     return (
@@ -83,6 +45,9 @@ const Dashboard = ({ onAddProduct }) => {
         )}
       </div>
 
+      {productsError && <div role="alert" className="data-error">
+        Could not refresh products. <button className="btn btn-ghost btn-sm" onClick={() => refreshProducts().catch(() => {})}>Retry</button>
+      </div>}
       <div className="stats-grid">
         {/* Total Products KPI */}
         <div className="stat-card">

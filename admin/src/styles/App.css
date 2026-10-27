@@ -3,6 +3,15 @@
    Editorial, tactile, and grounded operational interface.
    ========================================================================== */
 
+@font-face {
+  font-family: 'Dirham';
+  src: url('../assets/fonts/dirham.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+20C3;
+}
+
 :root {
   /* Brand Palette */
   --canvas: #FBF5E6;
@@ -25,8 +34,8 @@
   --alert-bg: #FBEFEA;
 
   /* Typography */
-  --font-display: 'Fraunces', 'Playfair Display', Georgia, serif;
-  --font-ui: 'DM Sans', 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Dirham', 'Fraunces', 'Playfair Display', Georgia, serif;
+  --font-ui: 'Dirham', 'DM Sans', 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   /* Layout & Geometry */
   --radius-sm: 4px;
@@ -761,6 +770,22 @@ body {
 .form-group select:focus,
 .form-group textarea:focus {
   border-color: var(--primary-ink);
+}
+
+.price-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.price-input > span {
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+  font-size: 1.25rem;
+}
+
+.price-input input {
+  min-width: 0;
 }
 
 .checkbox-ledger {

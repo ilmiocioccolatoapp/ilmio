@@ -84,9 +84,11 @@ async function _getCategoryOrderMap() {
 
 const getProducts = async (req, res) => {
   try {
-    const categoryOrder = await _getCategoryOrderMap();
-
-    let products = await prisma.product.findMany();
+    const [categoryOrder, rows] = await Promise.all([
+      _getCategoryOrderMap(),
+      Promise.resolve().then(() => prisma.product.findMany())
+    ]);
+    let products = rows;
     products = products.map((p) => {
       const obj = { ...p };
       if (obj.imagePublicId) {
@@ -120,11 +122,11 @@ const getProducts = async (req, res) => {
 
 const getAvailableProducts = async (req, res) => {
   try {
-    const categoryOrder = await _getCategoryOrderMap();
-
-    let products = await prisma.product.findMany({
-      where: { available: true }
-    });
+    const [categoryOrder, rows] = await Promise.all([
+      _getCategoryOrderMap(),
+      Promise.resolve().then(() => prisma.product.findMany({ where: { available: true } }))
+    ]);
+    let products = rows;
 
     products = products.map((p) => {
       const obj = { ...p };

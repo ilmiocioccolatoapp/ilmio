@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
-import { productService, categoryService } from '../services/api';
+import { displayPrice } from '../utils/price';
+import { useState } from 'react';
+import { useCatalog } from '../data/CatalogContext';
+import { catalogImageUrl } from '../utils/image';
 import {
   PlusIcon,
   PencilIcon,
@@ -8,38 +10,11 @@ import {
   PlayCircleIcon
 } from './Icons';
 
-const ProductList = ({ onEdit, refreshTrigger }) => {
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+const ProductList = ({ onEdit }) => {
+  const { products, categories, productsLoading: loading, productsError, categoriesError,
+    deleteProduct, toggleProduct, refreshProducts, refreshCategories } = useCatalog();
   const [filter, setFilter] = useState('all');
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const [productsResponse, categoriesData] = await Promise.all([
-          productService.getAllProducts(),
-          categoryService.getAllCategories()
-        ]);
-        if (cancelled) return;
-        setProducts(productsResponse.data || []);
-        setCategories(categoriesData || []);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        if (!cancelled) alert('Failed to load products');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    loadData();
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshTrigger]);
+  const [pending, setPending] = useState({});
 
   const handleDelete = async (id, title) => {
     if (!window.confirm(`Are you sure you want to remove "${title}" from the catalog? This action will remove it from the tablet menu.`)) {
@@ -47,23 +22,25 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
     }
 
     try {
-      await productService.deleteProduct(id);
-      const response = await productService.getAllProducts();
-      setProducts(response.data || []);
+      setPending(previous => ({ ...previous, [id]: true }));
+      await deleteProduct(id);
     } catch (error) {
       console.error('Error deleting product:', error);
       alert('Failed to delete product');
+    } finally {
+      setPending(previous => ({ ...previous, [id]: false }));
     }
   };
 
   const handleToggle = async (id) => {
     try {
-      await productService.toggleAvailability(id);
-      const response = await productService.getAllProducts();
-      setProducts(response.data || []);
+      setPending(previous => ({ ...previous, [id]: true }));
+      await toggleProduct(id);
     } catch (error) {
       console.error('Error toggling availability:', error);
       alert('Failed to toggle availability');
+    } finally {
+      setPending(previous => ({ ...previous, [id]: false }));
     }
   };
 
@@ -131,6 +108,9 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
         </div>
       </div>
 
+      {(productsError || categoriesError) && <div role="alert" className="data-error">
+        Some catalog data could not be refreshed. <button className="btn btn-ghost btn-sm" onClick={() => Promise.allSettled([refreshProducts(), refreshCategories()])}>Retry</button>
+      </div>}
       {filteredProducts.length === 0 ? (
         <div className="editorial-empty-state" style={{ margin: '40px auto' }}>
           <h3>No products match this ledger filter</h3>
@@ -152,9 +132,10 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
               <article key={productId} className={`product-card ${!product.available ? 'unavailable' : ''}`}>
                 <div className="product-image">
                   <img
-                    src={product.image || 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=600&q=80'}
+                    src={catalogImageUrl(product.image) || 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=600&q=80'}
                     alt={product.title}
                     loading="lazy"
+                    decoding="async"
                   />
                   <div className={`status-indicator ${product.available ? 'available' : 'unavailable'}`}>
                     <span className="status-dot"></span>
@@ -179,20 +160,22 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
                   )}
 
                   <div className="product-price">
-                    {product.price}
+                    {displayPrice(product.price)}
                   </div>
 
                   <div className="product-actions">
                     <button
                       className="btn btn-sm btn-ghost"
+                      disabled={pending[productId]}
                       onClick={() => handleToggle(productId)}
                       title={product.available ? 'Suspend from menu' : 'Make available for service'}
                     >
                       {product.available ? <PauseCircleIcon /> : <PlayCircleIcon />}
-                      <span>{product.available ? 'Suspend' : 'Resume'}</span>
+                      <span>{pending[productId] ? 'Saving...' : product.available ? 'Suspend' : 'Resume'}</span>
                     </button>
                     <button
                       className="btn btn-sm btn-ghost"
+                      disabled={pending[productId]}
                       onClick={() => onEdit(product)}
                       title="Edit product details"
                     >
@@ -201,6 +184,7 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
                     </button>
                     <button
                       className="btn btn-sm btn-ghost-danger"
+                      disabled={pending[productId]}
                       onClick={() => handleDelete(productId, product.title)}
                       title="Delete from catalog"
                     >

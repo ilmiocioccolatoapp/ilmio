@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/product.dart';
 import '../utils/constants.dart';
 import '../utils/image_utils.dart';
+import 'price_text.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -13,7 +14,6 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imgUrl = getSizedImageUrl(product.image, context);
-    final priceText = product.price.trim().isEmpty ? '—' : product.price.trim();
 
     return Material(
       color: Colors.transparent,
@@ -119,8 +119,8 @@ class ProductCard extends StatelessWidget {
                                 ).withValues(alpha: 0.5),
                               ),
                             ),
-                            child: Text(
-                              priceText,
+                            child: PriceText(
+                              product.price,
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,

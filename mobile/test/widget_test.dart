@@ -92,7 +92,7 @@ void main() {
     expect(find.text('Latte').hitTestable(), findsOneWidget);
     expect(find.text('Freshly brewed coffee').hitTestable(), findsOneWidget);
     expect(find.text('Coffee, milk').hitTestable(), findsOneWidget);
-    expect(find.text('AED 21').hitTestable(), findsOneWidget);
+    expect(find.text('\u20C3\u00A021').hitTestable(), findsOneWidget);
     expect(find.text('Description'), findsOneWidget);
     expect(find.text('Ingredients'), findsOneWidget);
     expect(find.byTooltip('Previous product'), findsOneWidget);

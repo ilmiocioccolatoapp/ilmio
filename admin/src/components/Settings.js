@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CheckIcon } from './Icons';
+import { DIRHAM_SYMBOL } from '../utils/price';
 
 const Settings = () => {
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved'
@@ -41,7 +42,7 @@ const Settings = () => {
           <div className="form-group">
             <label>Primary Accounting Currency</label>
             <select defaultValue="AED">
-              <option value="AED">AED (United Arab Emirates Dirham)</option>
+              <option value="AED">{DIRHAM_SYMBOL} (United Arab Emirates Dirham)</option>
               <option value="EUR">EUR (€ Euro)</option>
               <option value="USD">USD ($ US Dollar)</option>
             </select>

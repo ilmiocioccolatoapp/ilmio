@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { categoryService } from '../services/api';
+import { useState } from 'react';
+import { useCatalog } from '../data/CatalogContext';
 import {
   PlusIcon,
   PencilIcon,
@@ -8,8 +8,10 @@ import {
 } from './Icons';
 
 const Categories = () => {
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { categories, categoriesLoading: loading, categoriesError, refreshCategories,
+    saveCategory, deleteCategory } = useCatalog();
+  const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState({});
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [formData, setFormData] = useState({
@@ -18,23 +20,6 @@ const Categories = () => {
     icon: '✨',
     order: 0
   });
-
-  const loadCategories = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await categoryService.getAllCategories();
-      setCategories(response || []);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-      alert('Failed to load categories');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadCategories();
-  }, [loadCategories]);
 
   const handleAdd = () => {
     setEditingCategory(null);
@@ -64,28 +49,29 @@ const Categories = () => {
     }
 
     try {
-      await categoryService.deleteCategory(category.id);
-      loadCategories();
+      setPendingDelete(previous => ({ ...previous, [category.id]: true }));
+      await deleteCategory(category.id);
     } catch (error) {
       console.error('Error deleting category:', error);
       alert(error.error || 'Failed to delete category');
+    } finally {
+      setPendingDelete(previous => ({ ...previous, [category.id]: false }));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (saving) return;
+    setSaving(true);
     try {
-      if (editingCategory) {
-        await categoryService.updateCategory(editingCategory.id, formData);
-      } else {
-        await categoryService.createCategory(formData);
-      }
+      await saveCategory(editingCategory?.id, formData);
       setShowModal(false);
-      loadCategories();
     } catch (error) {
       console.error('Error saving category:', error);
       alert(error.error || 'Failed to save category');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -124,6 +110,9 @@ const Categories = () => {
         </button>
       </div>
 
+      {categoriesError && <div role="alert" className="data-error">
+        Could not refresh categories. <button className="btn btn-ghost btn-sm" onClick={() => refreshCategories().catch(() => {})}>Retry</button>
+      </div>}
       <div className="stats-grid">
         {categories.map(cat => (
           <div key={cat.id} className="category-card">
@@ -143,6 +132,7 @@ const Categories = () => {
             <div className="category-actions">
               <button
                 className="btn btn-sm btn-ghost"
+                disabled={pendingDelete[cat.id]}
                 onClick={() => handleEdit(cat)}
                 title="Edit category name or order"
               >
@@ -151,6 +141,7 @@ const Categories = () => {
               </button>
               <button
                 className="btn btn-sm btn-ghost-danger"
+                disabled={pendingDelete[cat.id]}
                 onClick={() => handleDelete(cat)}
                 title="Delete category"
               >
@@ -167,7 +158,7 @@ const Categories = () => {
           <div className="product-form" style={{ maxWidth: '520px' }}>
             <div className="form-header">
               <h2>{editingCategory ? 'Edit Category' : 'New Department Category'}</h2>
-              <button className="btn-close" onClick={() => setShowModal(false)} type="button">
+              <button className="btn-close" disabled={saving} onClick={() => setShowModal(false)} type="button">
                 <CloseIcon />
               </button>
             </div>
@@ -224,15 +215,16 @@ const Categories = () => {
                 <button
                   type="button"
                   className="btn btn-ghost"
-                  onClick={() => setShowModal(false)}
+                  disabled={saving} onClick={() => setShowModal(false)}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
+                  disabled={saving}
                   className="btn btn-primary"
                 >
-                  {editingCategory ? 'Save Changes' : 'Create Category'}
+                  {saving ? 'Saving...' : editingCategory ? 'Save Changes' : 'Create Category'}
                 </button>
               </div>
             </form>
