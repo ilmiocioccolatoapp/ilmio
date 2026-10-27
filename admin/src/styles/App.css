@@ -1157,65 +1157,114 @@ p, .section-subtitle {
 }
 
 /* --------------------------------------------------------------------------
-   Media Queries (Responsive Behavior from Concept)
+   Media Queries (Responsive Behavior for Tablets & Mobile)
    -------------------------------------------------------------------------- */
-@media (max-width: 800px) {
+@media (max-width: 1024px) {
+  .app {
+    flex-direction: column;
+  }
+
   aside, .sidebar {
     position: static;
-    width: auto;
-    padding: 18px;
+    width: 100%;
+    padding: 16px 20px 14px;
     height: auto;
+    min-height: 0;
+    box-sizing: border-box;
   }
-  
+
   .brand, .sidebar-brand {
-    padding-bottom: 15px;
+    padding: 0 0 12px 0;
+    border-bottom: 1px solid #4a3429;
+    margin-bottom: 10px;
   }
-  
+
   .navlabel, .sidebottom, .nav-label, .sidebar-footer {
     display: none;
   }
-  
+
   .nav, .sidebar-menu {
     display: flex;
     flex-direction: row;
     overflow-x: auto;
-    gap: 4px;
+    gap: 6px;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
-  
+
+  .nav::-webkit-scrollbar, .sidebar-menu::-webkit-scrollbar {
+    display: none;
+  }
+
   .nav button, .sidebar-menu button {
     white-space: nowrap;
     width: auto;
+    padding: 9px 14px;
+    font-size: 13px;
   }
-  
+
   .main, .workspace {
     margin-left: 0;
+    width: 100%;
+    min-width: 0;
   }
-  
+
   .top, .app-header {
-    padding: 0 20px;
+    height: auto;
+    min-height: 56px;
+    padding: 12px 20px;
   }
-  
+
+  .header-inner {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .admin-actions {
+    flex-wrap: wrap;
+  }
+
   .content, .main-content {
-    padding: 28px 20px;
+    padding: 24px 20px 48px;
+    max-width: 100%;
   }
-  
+
   .cards, .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
   }
-  
+
   .layout, .overview-layout {
     grid-template-columns: 1fr;
+    gap: 18px;
   }
-  
+
   .heading, .section-header {
     align-items: flex-start;
+    gap: 14px;
   }
-  
+
+  .products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
   .bar, .category-bar {
-    width: 50px;
+    width: 60px;
   }
 
   .empty-state-steps {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .cards, .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .products-grid {
     grid-template-columns: 1fr;
   }
 }
