@@ -12,6 +12,14 @@
   unicode-range: U+20C3;
 }
 
+@font-face {
+  font-family: 'DirhamPrice';
+  src: url('../assets/fonts/dirham-price.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   /* Brand Palette */
   --canvas: #FBF5E6;
@@ -572,7 +580,7 @@ body {
 }
 
 .product-price {
-  font-family: var(--font-display);
+  font-family: 'DirhamPrice', var(--font-display);
   font-size: 1.35rem;
   font-weight: 600;
   color: var(--accent);
@@ -780,12 +788,15 @@ body {
 
 .price-input > span {
   flex-shrink: 0;
-  font-family: var(--font-ui);
-  font-size: 1.25rem;
+  font-family: 'DirhamPrice', var(--font-ui);
+  font-size: 0.92rem;
+  font-weight: 600;
 }
 
-.price-input input {
+.form-group .price-input input {
   min-width: 0;
+  font-family: 'DirhamPrice', var(--font-ui);
+  font-weight: 600;
 }
 
 .checkbox-ledger {

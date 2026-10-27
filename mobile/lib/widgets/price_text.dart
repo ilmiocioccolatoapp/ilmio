@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../utils/price.dart';
 
-/// Uses a bundled glyph so the dirham sign renders on older Android/iOS fonts.
+/// The price face contains both numerals and a dirham glyph with matching ink
+/// height and baseline; system-font fallback cannot guarantee that alignment.
 class PriceText extends StatelessWidget {
   const PriceText(this.price, {super.key, this.style});
 
@@ -15,7 +16,8 @@ class PriceText extends StatelessWidget {
       text,
       semanticsLabel: text.replaceAll(dirhamSymbol, 'UAE dirhams'),
       style: (style ?? const TextStyle()).copyWith(
-        fontFamilyFallback: ['Dirham', ...?style?.fontFamilyFallback],
+        fontFamily:
+            text.contains(dirhamSymbol) ? 'DirhamPrice' : style?.fontFamily,
       ),
     );
   }

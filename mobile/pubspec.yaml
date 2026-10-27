@@ -1,7 +1,7 @@
 name: il_mio_cioccolato
 description: Il Mio Cioccolato - Mobile Gallery App
 publish_to: 'none'
-version: 1.0.5+6
+version: 1.0.6+7
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -31,7 +31,18 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/fonts/Roboto-OFL.txt
+    - assets/fonts/dirham-LICENSE.txt
   fonts:
+    - family: DirhamPrice
+      fonts:
+        - asset: assets/fonts/dirham-price-700.ttf
+          weight: 700
+        - asset: assets/fonts/dirham-price-800.ttf
+          weight: 800
+        - asset: assets/fonts/dirham-price-900.ttf
+          weight: 900
     - family: Dirham
       fonts:
         - asset: assets/fonts/dirham.ttf

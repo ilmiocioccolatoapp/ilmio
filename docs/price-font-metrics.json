@@ -1,0 +1,62 @@
+[
+  {
+    "font": "admin/src/assets/fonts/dirham-price.woff2",
+    "source": "https://github.com/google/fonts/tree/main/ofl/fraunces",
+    "source_sha256": "177ff6c0f14e5550a3c624247cd1189611d4eb65d000b14944c63d967958abbb",
+    "weight": 600,
+    "units_per_em": 2000,
+    "numeral_bounds": [
+      -31,
+      1451
+    ],
+    "symbol_bounds": [
+      -31,
+      1451
+    ]
+  },
+  {
+    "font": "mobile/assets/fonts/dirham-price-700.ttf",
+    "source": "https://github.com/google/fonts/tree/main/ofl/roboto",
+    "source_sha256": "d7598e12c5dbef095ff8272cfc55da0250bd07fbdecbac8a530b9b277872a134",
+    "weight": 700,
+    "units_per_em": 2048,
+    "numeral_bounds": [
+      -20,
+      1477
+    ],
+    "symbol_bounds": [
+      -20,
+      1477
+    ]
+  },
+  {
+    "font": "mobile/assets/fonts/dirham-price-800.ttf",
+    "source": "https://github.com/google/fonts/tree/main/ofl/roboto",
+    "source_sha256": "d7598e12c5dbef095ff8272cfc55da0250bd07fbdecbac8a530b9b277872a134",
+    "weight": 800,
+    "units_per_em": 2048,
+    "numeral_bounds": [
+      -20,
+      1477
+    ],
+    "symbol_bounds": [
+      -20,
+      1477
+    ]
+  },
+  {
+    "font": "mobile/assets/fonts/dirham-price-900.ttf",
+    "source": "https://github.com/google/fonts/tree/main/ofl/roboto",
+    "source_sha256": "d7598e12c5dbef095ff8272cfc55da0250bd07fbdecbac8a530b9b277872a134",
+    "weight": 900,
+    "units_per_em": 2048,
+    "numeral_bounds": [
+      -20,
+      1477
+    ],
+    "symbol_bounds": [
+      -20,
+      1477
+    ]
+  }
+]
