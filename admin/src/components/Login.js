@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../supabase';
+import { BakerySealIcon } from './Icons';
 
 const Login = ({ configError, authError }) => {
   const [email, setEmail] = useState('');
@@ -33,7 +34,7 @@ const Login = ({ configError, authError }) => {
     <main className="auth-page">
       <section className="auth-card">
         <div className="auth-brand">
-          <span aria-hidden="true">🍫</span>
+          <BakerySealIcon style={{ width: '28px', height: '28px', color: 'var(--accent)' }} />
           <p>Il Mio Cioccolato</p>
         </div>
         <h1>Admin sign in</h1>

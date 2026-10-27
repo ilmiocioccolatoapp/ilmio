@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { productService, categoryService } from '../services/api';
+import { CloseIcon } from './Icons';
 
 const getPriceCurrency = (price) => price.trim().startsWith('€') ? '€' : 'AED';
 
@@ -142,12 +143,15 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
 
   return (
     <div className="product-form-container">
-      <div className="form-header">
-        <h2>{product ? 'Edit Product' : 'Add New Product'}</h2>
-        <button className="btn-close" onClick={onCancel}>✕</button>
-      </div>
+      <div className="product-form">
+        <div className="form-header">
+          <h2>{product ? 'Edit Product' : 'Add New Product'}</h2>
+          <button className="btn-close" onClick={onCancel} type="button">
+            <CloseIcon />
+          </button>
+        </div>
 
-      <form onSubmit={handleSubmit} className="product-form">
+        <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="title">Title *</label>
           <input
@@ -266,15 +270,16 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
         </div>
 
         <div className="form-actions">
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>
+          <button type="button" className="btn btn-ghost" onClick={onCancel}>
             Cancel
           </button>
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Saving...' : (product ? 'Update Product' : 'Add Product')}
+            {loading ? 'Recording...' : (product ? 'Save Changes' : 'Publish Product')}
           </button>
         </div>
       </form>
     </div>
+  </div>
   );
 };
 

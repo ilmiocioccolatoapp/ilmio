@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { categoryService } from '../services/api';
+import {
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  CloseIcon
+} from './Icons';
 
 const Categories = () => {
   const [categories, setCategories] = useState([]);
@@ -9,7 +15,7 @@ const Categories = () => {
   const [formData, setFormData] = useState({
     id: '',
     name: '',
-    icon: '📦',
+    icon: '✨',
     order: 0
   });
 
@@ -19,7 +25,7 @@ const Categories = () => {
       const response = await categoryService.getAllCategories();
       setCategories(response || []);
     } catch (error) {
-      console.error('Error loading categories:');
+      console.error('Error loading categories:', error);
       alert('Failed to load categories');
     } finally {
       setLoading(false);
@@ -35,7 +41,7 @@ const Categories = () => {
     setFormData({
       id: '',
       name: '',
-      icon: '📦',
+      icon: '✨',
       order: categories.length + 1
     });
     setShowModal(true);
@@ -46,23 +52,22 @@ const Categories = () => {
     setFormData({
       id: category.id,
       name: category.name,
-      icon: category.icon,
-      order: category.order
+      icon: category.icon || '✨',
+      order: category.order || 0
     });
     setShowModal(true);
   };
 
   const handleDelete = async (category) => {
-    if (!window.confirm(`Are you sure you want to delete "${category.name}"? This cannot be undone.`)) {
+    if (!window.confirm(`Are you sure you want to delete category "${category.name}"? This cannot be undone.`)) {
       return;
     }
 
     try {
       await categoryService.deleteCategory(category.id);
-      alert('Category deleted successfully!');
       loadCategories();
     } catch (error) {
-      console.error('Error deleting category:');
+      console.error('Error deleting category:', error);
       alert(error.error || 'Failed to delete category');
     }
   };
@@ -73,15 +78,13 @@ const Categories = () => {
     try {
       if (editingCategory) {
         await categoryService.updateCategory(editingCategory.id, formData);
-        alert('Category updated successfully!');
       } else {
         await categoryService.createCategory(formData);
-        alert('Category created successfully!');
       }
       setShowModal(false);
       loadCategories();
     } catch (error) {
-      console.error('Error saving category:');
+      console.error('Error saving category:', error);
       alert(error.error || 'Failed to save category');
     }
   };
@@ -98,11 +101,12 @@ const Categories = () => {
     return (
       <div className="page-container">
         <div className="section-header">
-          <h2 className="section-title">Category Management</h2>
+          <div>
+            <h2 className="section-title">Category Registry</h2>
+            <p className="section-subtitle">Loading bakehouse departments...</p>
+          </div>
         </div>
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-          <p>Loading categories...</p>
-        </div>
+        <p style={{ color: 'var(--ink-muted)', fontStyle: 'italic' }}>Reading category configuration...</p>
       </div>
     );
   }
@@ -110,34 +114,48 @@ const Categories = () => {
   return (
     <div className="page-container">
       <div className="section-header">
-        <h2 className="section-title">Category Management</h2>
+        <div>
+          <h2 className="section-title">Category Registry ({categories.length})</h2>
+          <p className="section-subtitle">Department hierarchy, tablet gallery sequence, and kiosk order</p>
+        </div>
         <button className="btn btn-primary" onClick={handleAdd}>
-          <span>➕</span> Add Category
+          <PlusIcon />
+          <span>Add Category</span>
         </button>
       </div>
 
       <div className="stats-grid">
         {categories.map(cat => (
-          <div key={cat.id} className="stat-card">
-            <div className="stat-value">{cat.count}</div>
-            <div className="stat-label">{cat.name}</div>
-            <div style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>
-              {cat.count} {cat.count === 1 ? 'product' : 'products'}
+          <div key={cat.id} className="category-card">
+            <div className="category-card-top">
+              <span className="category-order">Position #{cat.order || '—'}</span>
+              {cat.icon && (
+                <span style={{ fontSize: '1.25rem' }}>{cat.icon}</span>
+              )}
             </div>
-            <div style={{ marginTop: '15px', display: 'flex', gap: '8px' }}>
+
+            <h3 className="category-name">{cat.name}</h3>
+
+            <div className="category-count">
+              {cat.count !== undefined ? `${cat.count} ${cat.count === 1 ? 'product' : 'products'}` : 'Active category'}
+            </div>
+
+            <div className="category-actions">
               <button
-                className="btn btn-sm btn-secondary"
+                className="btn btn-sm btn-ghost"
                 onClick={() => handleEdit(cat)}
-                style={{ flex: 1 }}
+                title="Edit category name or order"
               >
-                ✏️ Edit
+                <PencilIcon />
+                <span>Edit</span>
               </button>
               <button
-                className="btn btn-sm"
+                className="btn btn-sm btn-ghost-danger"
                 onClick={() => handleDelete(cat)}
-                style={{ flex: 1, background: '#dc3545', color: 'white' }}
+                title="Delete category"
               >
-                🗑️ Delete
+                <TrashIcon />
+                <span>Delete</span>
               </button>
             </div>
           </div>
@@ -145,35 +163,18 @@ const Categories = () => {
       </div>
 
       {showModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'white',
-            padding: '30px',
-            borderRadius: '12px',
-            width: '90%',
-            maxWidth: '500px',
-            maxHeight: '90vh',
-            overflow: 'auto'
-          }}>
-            <h3 style={{ marginBottom: '20px' }}>
-              {editingCategory ? 'Edit Category' : 'Add New Category'}
-            </h3>
+        <div className="product-form-container">
+          <div className="product-form" style={{ maxWidth: '520px' }}>
+            <div className="form-header">
+              <h2>{editingCategory ? 'Edit Category' : 'New Department Category'}</h2>
+              <button className="btn-close" onClick={() => setShowModal(false)} type="button">
+                <CloseIcon />
+              </button>
+            </div>
+
             <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-                  Category ID *
-                </label>
+              <div className="form-group">
+                <label>Category Identifier (Slug) *</label>
                 <input
                   type="text"
                   name="id"
@@ -181,71 +182,57 @@ const Categories = () => {
                   onChange={handleInputChange}
                   required
                   disabled={!!editingCategory}
-                  placeholder="e.g., beverages"
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
+                  placeholder="e.g. pastries, specialty-chocolates"
                 />
-                <small style={{ color: '#666', fontSize: '12px' }}>
-                  Lowercase, no spaces (used in product category field)
-                </small>
               </div>
 
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-                  Category Name *
-                </label>
+              <div className="form-group">
+                <label>Display Name *</label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
                   required
-                  placeholder="e.g., Beverages"
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
+                  placeholder="e.g. Viennoiserie & Pastries"
                 />
               </div>
 
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-                  Display Order
-                </label>
+              <div className="form-group">
+                <label>Icon Symbol (Kiosk Header)</label>
+                <input
+                  type="text"
+                  name="icon"
+                  value={formData.icon}
+                  onChange={handleInputChange}
+                  placeholder="e.g. 🥐 or ✨"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Display Order Sequence (Ascending)</label>
                 <input
                   type="number"
                   name="order"
                   value={formData.order}
                   onChange={handleInputChange}
                   min="0"
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <div className="form-actions" style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                 <button
                   type="button"
+                  className="btn btn-ghost"
                   onClick={() => setShowModal(false)}
-                  className="btn btn-secondary"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  {editingCategory ? 'Update' : 'Create'} Category
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                >
+                  {editingCategory ? 'Save Changes' : 'Create Category'}
                 </button>
               </div>
             </form>

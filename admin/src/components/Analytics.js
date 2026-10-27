@@ -1,31 +1,57 @@
-const Analytics = () => {
+import { PlusIcon, ArrowRightIcon } from './Icons';
+
+const Analytics = ({ onAddProduct, onNavigateProducts }) => {
   return (
     <div className="page-container">
-      <h2 className="section-title">Analytics Overview</h2>
-
-      <div className="stats-grid">
-        <div className="stat-card primary">
-          <div className="stat-icon">💰</div>
-          <div className="stat-value">AED 12,450</div>
-          <div className="stat-label">Total Revenue (This Month)</div>
-        </div>
-        <div className="stat-card success">
-          <div className="stat-icon">🛒</div>
-          <div className="stat-value">342</div>
-          <div className="stat-label">Total Orders</div>
-        </div>
-        <div className="stat-card warning">
-          <div className="stat-icon">👥</div>
-          <div className="stat-value">1,890</div>
-          <div className="stat-label">Unique Visitors</div>
+      <div className="section-header">
+        <div>
+          <h2 className="section-title">Sales & Revenue Ledger</h2>
+          <p className="section-subtitle">Transaction histories, order volumes, and kiosk receipts</p>
         </div>
       </div>
 
-      <div className="form-container" style={{ marginTop: '30px', textAlign: 'center', padding: '50px' }}>
-        <p style={{ color: '#666', fontSize: '1.2rem' }}>
-          Detailed charts and reports are generating...
+      <div className="editorial-empty-state">
+        <div className="empty-state-badge">
+          <span>Awaiting Initial Orders</span>
+        </div>
+
+        <h3>No sales data yet — start by publishing your first product</h3>
+
+        <p>
+          Real-time transaction ledgers, average order value, and visitor analytics activate
+          automatically once online ordering or point-of-sale customer receipts are recorded.
+          Prepare your bakehouse by finalizing your catalog items below.
         </p>
-        <div style={{ marginTop: '20px', fontSize: '3rem' }}>📊 📉 🥧</div>
+
+        <div className="empty-state-steps">
+          <div className="empty-step">
+            <span className="step-number">01</span>
+            <span className="step-text"><strong>Curate Catalog</strong><br />Add artisan chocolates, pastries, and signature drinks.</span>
+          </div>
+          <div className="empty-step">
+            <span className="step-number">02</span>
+            <span className="step-text"><strong>Configure Menu</strong><br />Organize category ordering and seasonal item availability.</span>
+          </div>
+          <div className="empty-step">
+            <span className="step-number">03</span>
+            <span className="step-text"><strong>Sync Tablet Kiosk</strong><br />Tablets reflect active catalog changes automatically.</span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          {onAddProduct && (
+            <button className="btn btn-primary" onClick={onAddProduct}>
+              <PlusIcon />
+              <span>Publish Product</span>
+            </button>
+          )}
+          {onNavigateProducts && (
+            <button className="btn btn-ghost" onClick={onNavigateProducts}>
+              <span>View Product Catalog</span>
+              <ArrowRightIcon />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

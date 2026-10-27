@@ -6,6 +6,14 @@ import Categories from './components/Categories';
 import Settings from './components/Settings';
 import Analytics from './components/Analytics';
 import Login from './components/Login';
+import {
+  BakerySealIcon,
+  DashboardIcon,
+  ProductsIcon,
+  CategoriesIcon,
+  SettingsIcon,
+  AnalyticsIcon
+} from './components/Icons';
 import { authService } from './services/api';
 import { supabase, supabaseConfigured } from './supabase';
 import './styles/App.css';
@@ -128,7 +136,7 @@ function App() {
       case 'settings':
         return <Settings />;
       case 'analytics':
-        return <Analytics />;
+        return <Analytics onAddProduct={handleAddProduct} onNavigateProducts={() => setActiveTab('products')} />;
       default:
         return <Dashboard onAddProduct={handleAddProduct} />;
     }
@@ -174,13 +182,18 @@ function App() {
       <header className="app-header">
         <div className="header-inner">
           <div className="logo">
-            <span style={{ fontSize: '2rem' }}>👑</span>
-            <h1>Il Mio Cioccolato - Admin Panel</h1>
+            <div className="logo-stamp">
+              <BakerySealIcon className="w-8 h-8" />
+            </div>
+            <div>
+              <h1>Il Mio Cioccolato</h1>
+            </div>
+            <span className="logo-tag">Operational Ledger</span>
           </div>
           <div className="admin-actions">
             <span className="admin-user">{adminUser.email}</span>
             {signOutError && <span className="auth-inline-error">{signOutError}</span>}
-            <button className="btn btn-secondary" onClick={handleSignOut}>
+            <button className="btn btn-ghost btn-sm" onClick={handleSignOut}>
               Sign out
             </button>
           </div>
@@ -195,7 +208,8 @@ function App() {
                 className={activeTab === 'dashboard' ? 'active' : ''}
                 onClick={() => setActiveTab('dashboard')}
               >
-                <span>📊</span> Dashboard
+                <DashboardIcon />
+                <span>Dashboard</span>
               </button>
             </li>
             <li>
@@ -203,7 +217,8 @@ function App() {
                 className={activeTab === 'products' ? 'active' : ''}
                 onClick={() => setActiveTab('products')}
               >
-                <span>🍽️</span> Products
+                <ProductsIcon />
+                <span>Products</span>
               </button>
             </li>
             <li>
@@ -211,7 +226,8 @@ function App() {
                 className={activeTab === 'categories' ? 'active' : ''}
                 onClick={() => setActiveTab('categories')}
               >
-                <span>🏷️</span> Categories
+                <CategoriesIcon />
+                <span>Categories</span>
               </button>
             </li>
             <li>
@@ -219,7 +235,8 @@ function App() {
                 className={activeTab === 'settings' ? 'active' : ''}
                 onClick={() => setActiveTab('settings')}
               >
-                <span>⚙️</span> Settings
+                <SettingsIcon />
+                <span>Settings</span>
               </button>
             </li>
             <li>
@@ -227,7 +244,8 @@ function App() {
                 className={activeTab === 'analytics' ? 'active' : ''}
                 onClick={() => setActiveTab('analytics')}
               >
-                <span>📈</span> Analytics
+                <AnalyticsIcon />
+                <span>Analytics</span>
               </button>
             </li>
           </ul>
