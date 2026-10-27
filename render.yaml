@@ -5,7 +5,7 @@ services:
     env: node
     region: singapore
     plan: free
-    buildCommand: cd backend && npm install
+    buildCommand: cd backend && npm ci
     startCommand: cd backend && npx prisma db push && npm start
     envVars:
       - key: NODE_ENV
@@ -24,6 +24,8 @@ services:
         sync: false
       - key: SUPABASE_ADMIN_EMAILS
         sync: false
+      - key: ADMIN_ORIGINS
+        sync: false
     healthCheckPath: /
 
   # Admin Panel Static Site
@@ -32,8 +34,15 @@ services:
     env: static
     region: singapore
     plan: free
-    buildCommand: cd admin && npm install && npm run build
+    buildCommand: cd admin && npm ci && npm run build
     staticPublishPath: admin/build
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: "frame-ancestors 'none'"
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
     routes:
       - type: rewrite
         source: /*

@@ -1,4 +1,5 @@
 const prisma = require('./prisma');
+const { logError } = require('../utils/errors');
 
 const connectDB = async () => {
   try {
@@ -6,7 +7,7 @@ const connectDB = async () => {
     console.log('PostgreSQL connected');
     return true;
   } catch (error) {
-    console.error(`DB Error: ${error.message}`);
+    logError('Database connection failed', error);
     // Never exit the process on Vercel serverless
     if (process.env.VERCEL !== '1') {
       process.exit(1);

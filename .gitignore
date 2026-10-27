@@ -45,7 +45,6 @@ Thumbs.db
 
 # Flutter/Dart
 mobile/.packages
-mobile/pubspec.lock
 mobile/.metadata
 mobile/ios/Pods/
 mobile/ios/.symlinks/

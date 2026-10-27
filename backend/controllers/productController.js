@@ -1,3 +1,4 @@
+const { serverError } = require('../utils/errors');
 const prisma = require('../config/prisma');
 const cloudinary = require('cloudinary').v2;
 
@@ -111,10 +112,7 @@ const getProducts = async (req, res) => {
       data: mapped
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return serverError(res, error, 'Product request failed');
   }
 };
 
@@ -151,10 +149,7 @@ const getAvailableProducts = async (req, res) => {
       data: mapped
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return serverError(res, error, 'Product request failed');
   }
 };
 
@@ -200,10 +195,7 @@ const createProduct = async (req, res) => {
       });
     }
 
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return serverError(res, error, 'Product request failed');
   }
 };
 
@@ -264,10 +256,7 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return serverError(res, error, 'Product request failed');
   }
 };
 
@@ -293,10 +282,7 @@ const deleteProduct = async (req, res) => {
       data: {}
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return serverError(res, error, 'Product request failed');
   }
 };
 
@@ -323,10 +309,7 @@ const toggleAvailability = async (req, res) => {
       data: _mapProduct(updated)
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return serverError(res, error, 'Product request failed');
   }
 };
 

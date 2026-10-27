@@ -4,6 +4,7 @@
   "description": "Backend API for Il Mio Cioccolato cafe",
   "main": "server.js",
   "scripts": {
+    "test": "node --test test/*.test.js",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "postinstall": "prisma generate",

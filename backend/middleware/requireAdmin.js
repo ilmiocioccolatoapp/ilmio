@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const { logError } = require('../utils/errors');
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabasePublishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
@@ -20,6 +21,9 @@ const supabase = supabaseUrl && supabasePublishableKey
   : null;
 
 async function requireAdmin(req, res, next) {
+  // Prevent browsers and shared caches from retaining protected responses,
+  // including configuration/authentication errors.
+  res.set('Cache-Control', 'no-store');
   if (!supabase || adminEmails.size === 0) {
     console.error('Admin authentication is missing Supabase or admin email configuration.');
     return res.status(503).json({
@@ -47,7 +51,7 @@ async function requireAdmin(req, res, next) {
         });
       }
 
-      console.error('Supabase token verification failed:', error.message);
+      logError('Supabase token verification failed', error);
       return res.status(503).json({
         success: false,
         error: 'Could not verify your session. Please try again.'
@@ -65,7 +69,7 @@ async function requireAdmin(req, res, next) {
     req.adminUser = { id: user.id, email: user.email };
     return next();
   } catch (error) {
-    console.error('Supabase token verification request failed:', error.message);
+    logError('Supabase token verification request failed', error);
     return res.status(503).json({
       success: false,
       error: 'Could not verify your session. Please try again.'

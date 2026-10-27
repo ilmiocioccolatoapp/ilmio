@@ -1,3 +1,4 @@
+const { logError } = require('./utils/errors');
 const dotenv = require('dotenv');
 const prisma = require('./config/prisma');
 
@@ -26,7 +27,7 @@ const updatePrices = async () => {
     console.log('\n✅ All prices updated to AED');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error:', error);
+    logError('❌ Error:', error);
     process.exit(1);
   } finally {
     await prisma.$disconnect();

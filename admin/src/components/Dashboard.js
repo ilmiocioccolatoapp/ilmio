@@ -35,7 +35,7 @@ const Dashboard = ({ onAddProduct }) => {
           byCategory: categoryCount
         });
       } catch (error) {
-        console.error('Error fetching stats:', error);
+        console.error('Error fetching stats:');
       } finally {
         if (!cancelled) setLoading(false);
       }

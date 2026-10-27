@@ -1,3 +1,4 @@
+const { serverError } = require('../utils/errors');
 const prisma = require('../config/prisma');
 
 function _mapCategory(category, count = 0) {
@@ -58,10 +59,7 @@ const getCategories = async (req, res) => {
       data: categoriesWithCount
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return serverError(res, error, 'Category request failed');
   }
 };
 
@@ -98,10 +96,7 @@ const createCategory = async (req, res) => {
       });
     }
 
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return serverError(res, error, 'Category request failed');
   }
 };
 
@@ -162,10 +157,7 @@ const updateCategory = async (req, res) => {
       });
     }
 
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return serverError(res, error, 'Category request failed');
   }
 };
 
@@ -202,10 +194,7 @@ const deleteCategory = async (req, res) => {
       data: {}
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return serverError(res, error, 'Category request failed');
   }
 };
 

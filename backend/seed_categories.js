@@ -1,3 +1,4 @@
+const { logError } = require('./utils/errors');
 const dotenv = require('dotenv');
 const prisma = require('./config/prisma');
 
@@ -28,7 +29,7 @@ const seedCategories = async () => {
 
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error seeding categories:', error);
+    logError('❌ Error seeding categories:', error);
     process.exit(1);
   } finally {
     await prisma.$disconnect();

@@ -19,7 +19,7 @@ const Categories = () => {
       const response = await categoryService.getAllCategories();
       setCategories(response || []);
     } catch (error) {
-      console.error('Error loading categories:', error);
+      console.error('Error loading categories:');
       alert('Failed to load categories');
     } finally {
       setLoading(false);
@@ -62,7 +62,7 @@ const Categories = () => {
       alert('Category deleted successfully!');
       loadCategories();
     } catch (error) {
-      console.error('Error deleting category:', error);
+      console.error('Error deleting category:');
       alert(error.error || 'Failed to delete category');
     }
   };
@@ -81,7 +81,7 @@ const Categories = () => {
       setShowModal(false);
       loadCategories();
     } catch (error) {
-      console.error('Error saving category:', error);
+      console.error('Error saving category:');
       alert(error.error || 'Failed to save category');
     }
   };

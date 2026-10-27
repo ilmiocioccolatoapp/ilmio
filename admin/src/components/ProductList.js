@@ -21,7 +21,7 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
         setProducts(productsResponse.data || []);
         setCategories(categoriesData || []);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching data:');
         if (!cancelled) alert('Failed to load products');
       } finally {
         if (!cancelled) setLoading(false);
@@ -44,7 +44,7 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
       const response = await productService.getAllProducts();
       setProducts(response.data || []);
     } catch (error) {
-      console.error('Error deleting product:', error);
+      console.error('Error deleting product:');
       alert('Failed to delete product');
     }
   };
@@ -55,7 +55,7 @@ const ProductList = ({ onEdit, refreshTrigger }) => {
       const response = await productService.getAllProducts();
       setProducts(response.data || []);
     } catch (error) {
-      console.error('Error toggling availability:', error);
+      console.error('Error toggling availability:');
       alert('Failed to toggle availability');
     }
   };

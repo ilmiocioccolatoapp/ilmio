@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const requireAdmin = require('../middleware/requireAdmin');
 const upload = require('../middleware/upload');
+const { logError, uploadErrorMessage } = require('../utils/errors');
 const {
   getProducts,
   getAvailableProducts,
@@ -16,9 +17,10 @@ function optionalImage(req, res, next) {
   if (!contentType.includes('multipart/form-data')) return next();
   upload.single('image')(req, res, (err) => {
     if (!err) return next();
+    logError('Product image upload failed', err);
     return res.status(400).json({
       success: false,
-      error: err.message || 'Image upload failed'
+      error: uploadErrorMessage(err)
     });
   });
 }

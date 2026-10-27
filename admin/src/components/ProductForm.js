@@ -50,7 +50,7 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
           setFormData(prev => ({ ...prev, category: data[0].id }));
         }
       } catch (error) {
-        console.error('Error fetching categories:', error);
+        console.error('Error fetching categories:');
       }
     };
 
@@ -133,7 +133,7 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
       }
       onSuccess();
     } catch (error) {
-      console.error('Error saving product:', error);
+      console.error('Error saving product:');
       alert(getErrorMessage(error));
     } finally {
       setLoading(false);

@@ -1,3 +1,4 @@
+const { logError } = require('./utils/errors');
 require('dotenv').config();
 const prisma = require('./config/prisma');
 
@@ -27,7 +28,7 @@ async function main() {
 
     process.exit(0);
   } catch (err) {
-    console.error('Error:', err.message);
+    logError('Error:', err);
     process.exit(1);
   } finally {
     await prisma.$disconnect();

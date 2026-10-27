@@ -1,0 +1,24 @@
+// No signing identity is generated or changed here. Release tasks require the
+// existing, explicitly supplied release configuration; debug tasks remain usable
+// without key.properties. Keystore contents and property values are never logged.
+def releaseProperties = project.ext.releaseSigningProperties
+def verifySigning = tasks.register('verifyReleaseSigningInputs') {
+    doLast {
+        def required = ['storeFile', 'storePassword', 'keyAlias', 'keyPassword']
+        def missing = required.findAll { !releaseProperties.getProperty(it)?.trim() }
+        if (!missing.isEmpty()) {
+            throw new GradleException('Release signing inputs are missing: ' + missing.join(', ') +
+                '. Configure key.properties with the existing intended release identity; debug fallback is disabled.')
+        }
+        if (!project.file(releaseProperties.getProperty('storeFile')).isFile()) {
+            throw new GradleException('The configured release keystore is unavailable. No signing fallback is permitted.')
+        }
+    }
+}
+
+tasks.configureEach {
+    // Covers assemble/bundle/package/validateSigning and flavored release tasks.
+    if (name != 'verifyReleaseSigningInputs' && name.contains('Release')) {
+        dependsOn(verifySigning)
+    }
+}
