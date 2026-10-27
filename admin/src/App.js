@@ -123,7 +123,7 @@ function App() {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard onAddProduct={handleAddProduct} />;
+        return <Dashboard onAddProduct={handleAddProduct} onNavigate={setActiveTab} />;
       case 'products':
         return <ProductList onEdit={handleEditProduct} />;
       case 'categories':
@@ -133,7 +133,7 @@ function App() {
       case 'analytics':
         return <Analytics onAddProduct={handleAddProduct} onNavigateProducts={() => setActiveTab('products')} />;
       default:
-        return <Dashboard onAddProduct={handleAddProduct} />;
+        return <Dashboard onAddProduct={handleAddProduct} onNavigate={setActiveTab} />;
     }
   };
 
@@ -172,94 +172,67 @@ function App() {
     );
   }
 
+  const navigation = [
+    { id: 'dashboard', label: 'Overview', Icon: DashboardIcon },
+    { id: 'products', label: 'Products', Icon: ProductsIcon },
+    { id: 'categories', label: 'Categories', Icon: CategoriesIcon },
+    { id: 'settings', label: 'Settings', Icon: SettingsIcon },
+    { id: 'analytics', label: 'Analytics', Icon: AnalyticsIcon }
+  ];
+  const currentPage = navigation.find(item => item.id === activeTab)?.label || 'Overview';
+  const initials = adminUser.email.slice(0, 2).toUpperCase();
+
   return (
     <CatalogProvider key={adminUser.id}>
-    <div className="app">
-      <header className="app-header">
-        <div className="header-inner">
-          <div className="logo">
-            <div className="logo-stamp">
-              <BakerySealIcon size={32} />
-            </div>
-            <div>
-              <h1>Il Mio Cioccolato</h1>
-            </div>
-            <span className="logo-tag">Operational Ledger</span>
-          </div>
-          <div className="admin-actions">
-            <span className="admin-user">{adminUser.email}</span>
-            {signOutError && <span className="auth-inline-error">{signOutError}</span>}
-            <button className="btn btn-ghost btn-sm" onClick={handleSignOut}>
-              Sign out
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="container">
+      <div className="app">
         <aside className="sidebar">
-          <ul className="sidebar-menu">
-            <li>
-              <button
-                className={activeTab === 'dashboard' ? 'active' : ''}
-                onClick={() => setActiveTab('dashboard')}
-              >
-                <DashboardIcon />
-                <span>Dashboard</span>
-              </button>
-            </li>
-            <li>
-              <button
-                className={activeTab === 'products' ? 'active' : ''}
-                onClick={() => setActiveTab('products')}
-              >
-                <ProductsIcon />
-                <span>Products</span>
-              </button>
-            </li>
-            <li>
-              <button
-                className={activeTab === 'categories' ? 'active' : ''}
-                onClick={() => setActiveTab('categories')}
-              >
-                <CategoriesIcon />
-                <span>Categories</span>
-              </button>
-            </li>
-            <li>
-              <button
-                className={activeTab === 'settings' ? 'active' : ''}
-                onClick={() => setActiveTab('settings')}
-              >
-                <SettingsIcon />
-                <span>Settings</span>
-              </button>
-            </li>
-            <li>
-              <button
-                className={activeTab === 'analytics' ? 'active' : ''}
-                onClick={() => setActiveTab('analytics')}
-              >
-                <AnalyticsIcon />
-                <span>Analytics</span>
-              </button>
-            </li>
-          </ul>
+          <div className="sidebar-brand">
+            <span>Il Mio Cioccolato</span>
+            <small>Admin workspace</small>
+          </div>
+          <div className="nav-label">Workspace</div>
+          <nav aria-label="Workspace">
+            <ul className="sidebar-menu">
+              {navigation.map(({ id, label, Icon }) => (
+                <li key={id}>
+                  <button
+                    className={activeTab === id ? 'active' : ''}
+                    aria-current={activeTab === id ? 'page' : undefined}
+                    onClick={() => setActiveTab(id)}
+                  >
+                    <Icon /><span>{label}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <div className="sidebar-footer">
+            <BakerySealIcon size={28} />
+            <div>Il Mio Cioccolato<small>Catalog & kiosk management</small></div>
+          </div>
         </aside>
 
-        <main className="main-content">
-          {renderContent()}
-        </main>
-      </div>
+        <div className="workspace">
+          <header className="app-header">
+            <div className="header-inner">
+              <div className="breadcrumbs" aria-label="Current page">
+                <span>Workspace</span><span aria-hidden="true">/</span><strong>{currentPage}</strong>
+              </div>
+              <div className="admin-actions">
+                <span className="admin-avatar" aria-hidden="true">{initials}</span>
+                <span className="admin-user">{adminUser.email}</span>
+                {signOutError && <span className="auth-inline-error" role="alert">{signOutError}</span>}
+                <button className="btn btn-ghost btn-sm" onClick={handleSignOut}>Sign out</button>
+              </div>
+            </div>
+          </header>
+          <main className="main-content">{renderContent()}</main>
+        </div>
 
-      {showForm && (
-        <ProductForm
-          product={editingProduct}
-          onSuccess={handleFormSuccess}
-          onCancel={handleFormCancel}
-        />
-      )}
-    </div>
+        {showForm && (
+          <ProductForm product={editingProduct} onSuccess={handleFormSuccess} onCancel={handleFormCancel} />
+        )}
+      </div>
     </CatalogProvider>
   );
 }

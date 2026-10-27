@@ -43,7 +43,7 @@ test('tab navigation and acknowledged availability changes require no full-catal
   expect(button('Resume')).toBeDefined();
   await flush(() => button('Categories').click());
   expect(element.textContent).toContain('1 product');
-  await flush(() => button('Dashboard').click());
+  await flush(() => button('Overview').click());
   const values = [...element.querySelectorAll('.stat-value')].map(e => e.textContent);
   expect(values).toEqual(['1', '0', '1']);
   await flush(() => button('Products').click());
@@ -81,7 +81,7 @@ test('server authorization failure removes the cached panel', async () => {
   authService.getCurrentUser.mockRejectedValue(new Error('Access revoked'));
   await flush(() => emit('TOKEN_REFRESHED', { ...session, access_token: 'rejected-token' }));
   expect(element.textContent).toContain('Access revoked');
-  expect(element.querySelector('.container')).toBeNull();
+  expect(element.querySelector('.workspace')).toBeNull();
 });
 
 
@@ -102,11 +102,27 @@ test('switching accounts hides the previous catalog until the new account is ver
   let finish;
   authService.getCurrentUser.mockReturnValue(new Promise(resolve => { finish = resolve; }));
   await flush(() => emit('SIGNED_IN', { access_token: 'other-token', user: { id: 'admin-2' } }));
-  expect(element.querySelector('.container')).toBeNull();
+  expect(element.querySelector('.workspace')).toBeNull();
   expect(element.textContent).toContain('Checking your sign-in');
   productService.getAllProducts.mockResolvedValue({ data: [] });
   await flush(() => finish({ id: 'admin-2', email: 'other@example.test' }));
   expect(element.textContent).toContain('other@example.test');
   expect([...element.querySelectorAll('.stat-value')].map(e => e.textContent)).toEqual(['0', '0', '0']);
   expect(productService.getAllProducts).toHaveBeenCalledTimes(2);
+});
+
+test('overview quick actions use the live catalog and open the working editor', async () => {
+  expect(element.textContent).toContain('Good to see you.');
+  expect(element.textContent).toContain('Everything is ready for service');
+  await flush(() => button('Manage products').click());
+  expect(element.querySelector('.products-grid')).not.toBeNull();
+  await flush(() => button('Overview').click());
+  await flush(() => button('Manage categories').click());
+  expect(element.querySelector('.category-card')).not.toBeNull();
+  await flush(() => button('Overview').click());
+  await flush(() => button('Add product').click());
+  expect(element.querySelector('#title')).not.toBeNull();
+  expect(element.querySelector('#price')).not.toBeNull();
+  expect(productService.getAllProducts).toHaveBeenCalledTimes(1);
+  expect(categoryService.getAllCategories).toHaveBeenCalledTimes(1);
 });
