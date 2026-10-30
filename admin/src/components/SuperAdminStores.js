@@ -62,27 +62,30 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
       {loading ? (
         <p role="status">Loading stores…</p>
       ) : stores.length ? (
-        <div className="branch-card-grid">
+        <div className="store-card-grid" aria-label="All stores">
           {stores.map(store => (
             <button
               type="button"
-              className="branch-card"
+              className="store-card"
               key={store.id}
               onClick={() => onOpenStore(store)}
             >
-              <span className="branch-card-title">{store.name}</span>
-              <span>{store.ownerName}</span>
-              <span>Store ID: <strong>{store.loginCode}</strong></span>
-              <span>{store.assignments.length
+              <span className="store-card-heading">
+                <span className="store-card-title">{store.name}</span>
+                <span className={`store-card-status ${store.status === 'active' ? 'is-active' : ''}`}>{store.status}</span>
+              </span>
+              <span className="store-card-owner">{store.ownerName}</span>
+              <span className="store-card-id">Tablet Store ID <strong>{store.loginCode}</strong></span>
+              <span className="store-card-brands">{store.assignments.length
                 ? store.assignments.map(assignment => assignment.brand.name).join(', ')
                 : 'No menu assigned'}</span>
-              <span className="branch-card-status">{store.status}</span>
+              <span className="store-card-open">Manage store <span aria-hidden="true">→</span></span>
             </button>
           ))}
         </div>
       ) : (
         <div className="ledger-card">
-          <h2>No stores yet</h2>
+          <h2>No stores found</h2>
           <p>Create a store to set up its menu and tablet login.</p>
         </div>
       )}

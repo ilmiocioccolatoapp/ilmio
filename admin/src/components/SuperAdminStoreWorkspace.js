@@ -90,7 +90,7 @@ export default function SuperAdminStoreWorkspace({
   return (
     <div className="page-container super-admin-store">
       <button className="btn btn-ghost branch-back" onClick={onBack}>← All stores</button>
-      <div className="branch-detail-heading">
+      <div className="store-detail-heading">
         <div>
           <h1 className="section-title">{store.name}</h1>
           <p>{store.ownerName} · Store ID: <strong>{store.loginCode}</strong></p>

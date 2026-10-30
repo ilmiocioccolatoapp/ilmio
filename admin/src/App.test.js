@@ -231,35 +231,40 @@ test('Platform Admin lands on a simple store directory and creates a store from 
   expect(element.textContent).toContain('Tablet login');
 });
 
-test('opening a store shows menu, categories, and tablet login for that branch', async () => {
+test('store cards open menu, categories, and tablet login for the selected store', async () => {
   const platformUser={...membership,isPlatformAdmin:true,orgs:[{id:'org-1',name:'Owner'}],id:'admin-1',email:'platform@example.test'};
   authService.getCurrentUser.mockResolvedValue(platformUser);
   platformService.get.mockImplementation(path => {
     if(path==='/orgs/org-1/stores') return Promise.resolve([{
-      id:'store-1',orgId:'org-1',ownerName:'Owner',name:'Main branch',loginCode:'main-branch',status:'active',passwordConfigured:true,
+      id:'store-1',orgId:'org-1',ownerName:'Owner',name:'Main store',loginCode:'main-store',status:'active',passwordConfigured:true,
       assignments:[{id:'assignment-1',brand:{id:'brand-1',name:'Il Mio'},status:'active',unpublishedChanges:false}]
+    },{
+      id:'store-2',orgId:'org-1',ownerName:'Owner',name:'Second store',loginCode:'second-store',status:'active',passwordConfigured:false,assignments:[]
     }]);
     if(path==='/brands/brand-1/stores') return Promise.resolve([{
-      id:'assignment-1',storeId:'store-1',brandId:'brand-1',store:{id:'store-1',name:'Main branch'},status:'active',overrides:[]
+      id:'assignment-1',storeId:'store-1',brandId:'brand-1',store:{id:'store-1',name:'Main store'},status:'active',overrides:[]
     }]);
     return Promise.resolve([]);
   });
   await flush(() => emit('TOKEN_REFRESHED',{...session,access_token:'platform-branch-menu-token'}));
-  await flush(() => element.querySelector('.branch-card').click());
-  expect(element.textContent).toContain('Main branch');
+  expect(element.querySelectorAll('.store-card')).toHaveLength(2);
+  expect(element.textContent).toContain('Main store');
+  expect(element.textContent).toContain('Second store');
+  await flush(() => element.querySelector('.store-card').click());
+  expect(element.textContent).toContain('Main store');
   expect(button('Menu')).toBeDefined();
   expect(button('Categories')).toBeDefined();
   expect(button('Tablet login')).toBeDefined();
   await flush(() => button('Store availability & publishing').click());
   expect(element.textContent).toContain('Publish to this store');
-  expect(button('← Back to branch')).toBeDefined();
-  await flush(() => button('← Back to branch').click());
+  expect(button('← Back to store')).toBeDefined();
+  await flush(() => button('← Back to store').click());
   await flush(() => button('Tablet login').click());
   expect(element.textContent).toContain('Tablet login details');
-  expect(element.textContent).toContain('main-branch');
+  expect(element.textContent).toContain('main-store');
   expect(element.textContent).toContain('Set — hidden for security');
   expect(button('Show tablet login QR')).toBeDefined();
   expect(element.querySelector('input[type="password"]').minLength).toBe(6);
   await flush(() => button('← All stores').click());
-  expect(element.querySelector('.branch-card')).not.toBeNull();
+  expect(element.querySelector('.store-card')).not.toBeNull();
 });
