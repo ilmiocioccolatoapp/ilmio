@@ -15,6 +15,7 @@
     "admin:invite-platform": "node scripts/invite-platform-admin.js",
     "admin:bootstrap-ilmio": "node scripts/bootstrap-ilmio-brand-admin.js",
     "store:init-ilmio": "node scripts/initialize-ilmio-store.js",
+    "brands:reconcile-duplicates": "node scripts/reconcile-duplicate-brands.js",
     "db:backup": "node scripts/database-ops.js backup",
     "db:restore-check": "node scripts/database-ops.js restore-check",
     "legacy:adoption-report": "node scripts/legacy-adoption-report.js"

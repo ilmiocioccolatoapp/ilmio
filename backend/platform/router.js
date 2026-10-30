@@ -76,6 +76,30 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
  admin.get('/brands',wrap(async(req,res)=>json(res)(await db.brand.findMany({where:brandWhere(req.admin),orderBy:{name:'asc'}}))));
  admin.post('/brands',wrap(async(req,res)=>{platformAdminScope(req.admin);const o=await db.organization.findUnique({where:{id:text(req.body.orgId,'Organization')}});if(!o||o.status!=='active')fail(404,'Organization not found.');const result=await db.$transaction(async tx=>{const b=await tx.brand.create({data:{orgId:o.id,name:text(req.body.name,'Brand name'),slug:code(req.body.slug,'Brand slug'),currency:currency(req.body.currency||'AED'),timezone:timezone(req.body.timezone||'Asia/Dubai')}});await audit(tx,req.admin,{orgId:o.id,brandId:b.id},'Brand',b.id,'create');return b;});res.status(201).json({success:true,data:result});}));
  async function platformBrand(req){platformAdminScope(req.admin);const b=await db.brand.findUnique({where:{id:req.params.brandId}});if(!b)fail(404,'Brand not found.');return b;}
+ admin.post('/brands/:brandId/stores',wrap(async(req,res)=>{
+   const b=await platformBrand(req);
+   const passwordHash=await hash(password(req.body.password));
+   const result=await db.$transaction(async tx=>{
+     await lockBrand(tx,b.id);
+     const owner=await tx.organization.findUnique({where:{id:b.orgId}});
+     if(!owner||owner.status!=='active')fail(404,'Brand owner organization not found.');
+     const s=await tx.store.create({data:{
+       orgId:b.orgId,
+       name:text(req.body.name,'Store name'),
+       slug:code(req.body.slug,'Store slug'),
+       loginCode:code(req.body.loginCode,'Store login code'),
+       passwordHash,
+       timezone:timezone(req.body.timezone||'Asia/Dubai'),
+       address:req.body.address?text(req.body.address,'Address',500):null
+     },select:storeSelect});
+     const a=await tx.storeBrand.create({data:{storeId:s.id,brandId:b.id,approvedBy:req.admin.id}});
+     await tx.store.update({where:{id:s.id},data:{revision:{increment:1}}});
+     await audit(tx,req.admin,{orgId:b.orgId,storeId:s.id},'Store',s.id,'create',{brandId:b.id});
+     await record(tx,req,b,'StoreBrand',a.id,'approve-assignment');
+     return {...s,passwordConfigured:true,ownerName:owner.name,assignment:a};
+   });
+   res.status(201).json({success:true,data:result});
+ }));
  admin.get('/brands/:brandId/admins',wrap(async(req,res)=>{const b=await platformBrand(req);json(res)(await db.brandMembership.findMany({where:{brandId:b.id},include:{profile:{select:{id:true,email:true,name:true,status:true}}},orderBy:{createdAt:'asc'}}));}));
  admin.post('/brands/:brandId/admins',wrap(async(req,res)=>{
    const b=await platformBrand(req);
@@ -116,6 +140,27 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
    if(data.status!==undefined)await tx.store.updateMany({where:{assignments:{some:{brandId:b.id}}},data:{revision:{increment:1}}});
    await record(tx,req,b,'Brand',b.id,'update',data);return updated;
  }))));
+ admin.delete('/brands/:brandId',wrap(async(req,res)=>{
+   const b=await platformBrand(req);
+   await db.$transaction(async tx=>{
+     await lockBrand(tx,b.id);
+     const counts={
+       activeAssignments:await tx.storeBrand.count({where:{brandId:b.id,status:'active'}}),
+       assignments:await tx.storeBrand.count({where:{brandId:b.id}}),
+       products:await tx.product.count({where:{brandId:b.id}}),
+       categories:await tx.category.count({where:{brandId:b.id}}),
+       administrators:await tx.brandMembership.count({where:{brandId:b.id}}),
+       assets:await tx.asset.count({where:{brandId:b.id}})
+     };
+     if(counts.activeAssignments)fail(400,'Remove active store assignments before deleting this brand.');
+     if(counts.products)fail(400,'Remove or migrate this brand’s products before deleting it.');
+     if(counts.assignments)fail(400,'Remove all store assignments before deleting this brand.');
+     if(counts.categories||counts.administrators||counts.assets)fail(400,'Remove this brand’s categories, administrators, and assets before deleting it.');
+     await audit(tx,req.admin,{orgId:b.orgId,brandId:b.id},'Brand',b.id,'delete');
+     await tx.brand.delete({where:{id:b.id}});
+   });
+   res.status(204).end();
+ }));
  admin.get('/orgs/:orgId/stores',wrap(async(req,res)=>{
    await org(req);
    const stores=await db.store.findMany({where:{orgId:req.params.orgId},select:{...storeSelect,passwordHash:true,assignments:{include:{brand:{select:{id:true,name:true,orgId:true}}}}},orderBy:{name:'asc'}});

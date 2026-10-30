@@ -1272,6 +1272,14 @@ p, .section-subtitle {
 .scope-selectors,.store-actions { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
 .scope-selectors label { display:grid; gap:5px; font-size:13px; }
 .scope-selectors select { min-width:160px; max-width:300px; padding:9px; }
+.brand-provisioning > .ledger-card form { display:grid; gap:14px; margin-top:14px; }
+.brand-provisioning > .ledger-card form label { display:grid; gap:6px; font-size:14px; font-weight:600; }
+.brand-provisioning > .ledger-card form input,.brand-provisioning > .ledger-card form select { width:100%; min-width:0; padding:10px 12px; }
+.brand-list { display:grid; }
+.brand-record { display:flex; align-items:center; justify-content:space-between; gap:18px; }
+.brand-record p { margin:5px 0 0; color:var(--ink-secondary); }
+.brand-record .store-actions { flex:none; margin:0; }
+.brand-slug { color:var(--ink-muted); font-size:13px; font-weight:400; }
 .management-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; }
 .ledger-card { margin-bottom:20px; }
 .store-record { padding:16px 0; border-bottom:1px solid var(--border); }
@@ -1336,6 +1344,8 @@ p, .section-subtitle {
 .store-id-form label,.store-password-form label { flex:1 1 260px; }
 .store-login-qr { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-top:20px; }
 @media (max-width:640px) {
+  .brand-record { align-items:flex-start; flex-direction:column; }
+  .brand-record .store-actions { margin-top:8px; }
   .super-admin-store .store-detail-heading { display:block; }
   .store-workspace-tabs { overflow-x:auto; flex-wrap:nowrap; }
   .store-workspace-tabs button { white-space:nowrap; }

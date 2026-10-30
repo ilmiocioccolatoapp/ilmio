@@ -4,6 +4,7 @@ const jwt=require('jsonwebtoken');
 const {PrismaClient}=require('@prisma/client');
 const {createApp}=require('../../app');
 const {hash}=require('../../platform/storeAuth');
+const {duplicateGroups,mergeBrands}=require('../../scripts/reconcile-duplicate-brands');
 const db=new PrismaClient();
 let server,url;
 const uid={super:'super-user',ownerA:'owner-a',ownerB:'owner-b',brandA:'brand-a-user',brandB:'brand-b-user'};
@@ -151,6 +152,53 @@ test('concurrent publishes are ordered; DB snapshots and pointers are immutable/
  await ok('/admin/brands/brand-a/stores/downtown/publish',{actor:'brandA',method:'POST',body:{}});
  const menu=await call('/menu',{token:downtown.accessToken});assert.equal(menu.body.brands.find(b=>b.id==='brand-a').categories[0].items.length,0);
  assert.ok(await db.auditLog.count({where:{brandId:'brand-a',action:'publish'}}));
+});
+test('Super Admin can atomically create brand branches and safely delete empty brands',async()=>{
+ const details={name:'Brand-owned branch',slug:'brand-owned-branch',loginCode:'brand-owned-tablet',password:'tablet-123',address:'Main street',timezone:'Asia/Dubai'};
+ assert.equal((await call('/admin/brands/brand-b/stores',{actor:'brandB',method:'POST',body:details})).status,403);
+ const created=await call('/admin/brands/brand-b/stores',{method:'POST',body:details});
+ assert.equal(created.status,201,JSON.stringify(created.body));
+ assert.equal(created.body.data.passwordConfigured,true);
+ assert.equal(Object.hasOwn(created.body.data,'passwordHash'),false);
+ const assignment=await db.storeBrand.findUnique({where:{storeId_brandId:{storeId:created.body.data.id,brandId:'brand-b'}}});
+ assert.ok(assignment);
+ assert.equal((await db.store.findUnique({where:{id:created.body.data.id}})).address,'Main street');
+ const branches=await ok('/admin/brands/brand-b/stores');
+ assert.equal(branches.some(item=>item.store.id===created.body.data.id),true);
+
+ assert.equal((await call('/admin/brands/brand-a',{method:'DELETE'})).status,400);
+ assert.equal((await call('/admin/brands/brand-b',{method:'DELETE'})).status,400);
+ const empty=await ok('/admin/brands',{method:'POST',body:{orgId:'org-a',name:'Disposable brand',slug:'disposable-brand'}});
+ assert.equal((await call('/admin/brands/'+empty.id,{method:'DELETE'})).status,204);
+ assert.equal(await db.brand.findUnique({where:{id:empty.id}}),null);
+});
+test('duplicate brand reconciliation preserves memberships, assignments, categories, assets and audit history',async()=>{
+ await db.brand.createMany({data:[
+  {id:'merge-canonical',orgId:'org-a',name:'Il Mio',slug:'merge-canonical'},
+  {id:'merge-duplicate',orgId:'org-a',name:' il mio ',slug:'merge-duplicate'}
+ ]});
+ await db.brandMembership.create({data:{profileId:uid.brandA,brandId:'merge-duplicate'}});
+ await db.category.create({data:{brandId:'merge-duplicate',code:'merge-category',name:'Merged category'}});
+ await db.storeBrand.create({data:{storeId:'downtown',brandId:'merge-duplicate',approvedBy:uid.super}});
+ await db.asset.create({data:{brandId:'merge-duplicate',publicId:'merge-asset',url:'https://example.test/merge.png'}});
+ await db.auditLog.create({data:{actorType:'system',brandId:'merge-duplicate',entity:'Brand',entityId:'merge-duplicate',action:'old-event'}});
+ const groups=duplicateGroups([
+  {id:'merge-canonical',orgId:'org-a',name:'Il Mio'},
+  {id:'merge-duplicate',orgId:'org-a',name:' il mio '}
+ ]);
+ assert.equal(groups.length,1);
+ const result=await mergeBrands(db,'merge-canonical',['merge-duplicate']);
+ assert.deepEqual(result.removedBrandIds,['merge-duplicate']);
+ assert.equal(result.movedMemberships,1);
+ assert.equal(result.movedAssignments,1);
+ assert.equal(result.movedCategories,1);
+ assert.equal(result.movedAssets,1);
+ assert.equal(await db.brand.findUnique({where:{id:'merge-duplicate'}}),null);
+ assert.ok(await db.brandMembership.findUnique({where:{profileId_brandId:{profileId:uid.brandA,brandId:'merge-canonical'}}}));
+ assert.ok(await db.storeBrand.findUnique({where:{storeId_brandId:{storeId:'downtown',brandId:'merge-canonical'}}}));
+ assert.ok(await db.category.findFirst({where:{brandId:'merge-canonical',code:'merge-category'}}));
+ assert.ok(await db.asset.findFirst({where:{brandId:'merge-canonical',publicId:'merge-asset'}}));
+ assert.ok(await db.auditLog.findFirst({where:{brandId:'merge-canonical',action:'old-event'}}));
 });
 test('refresh rotates once; revoke/password reset reject reads before 304',async()=>{
  const refreshed=await ok('/auth/store/refresh',{actor:null,method:'POST',body:{refreshToken:downtown.refreshToken}});

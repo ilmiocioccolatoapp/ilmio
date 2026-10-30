@@ -18,6 +18,16 @@ All three commands are operator actions. Do not run them against production befo
 
 ## Script Inventory
 
+### Duplicate brand reconciliation
+
+`npm run brands:reconcile-duplicates` is report-only by default. It lists normalized duplicate brand names with their owner IDs and related-record counts. Review the report and choose the canonical ID explicitly before applying a merge:
+
+```bash
+npm run brands:reconcile-duplicates -- --apply --canonical <canonical-brand-id> --duplicates <duplicate-id,duplicate-id>
+```
+
+The script loads `backend/.env`, migrates brand administrator memberships, store assignments, categories, assets, and audit-log references in one transaction, then removes the selected duplicate brands. It refuses to merge across owners or currencies, when products or store overrides exist, when category codes collide, or when assignments would collide. Those cases require a reviewed manual migration. Take a backup and rehearse against a restored staging database before using `--apply`; never run this command against production without the approved backup and restore checks.
+
 ### 1. `seed.js`
 - **Purpose**: Populates the database with initial categories and chocolate cafe menu products (croissants, hot chocolate, desserts, etc.) including English descriptions, ingredients, and starting prices.
 - **Execution**:
