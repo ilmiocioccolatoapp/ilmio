@@ -129,6 +129,19 @@ test('Prisma initialization errors log their allowlisted provider error code', a
   });
 });
 
+test('Prisma initialization logs a safe connection-failure category, never its raw message', async () => {
+  await captureLogs(logs => {
+    logError('Database connection failed', Object.assign(new Error("Can't reach database server at postgresql://user:secret@host/db"), {
+      name: 'PrismaClientInitializationError'
+    }));
+    assert.deepEqual(logs, [['Database connection failed', {
+      name: 'PrismaClientInitializationError',
+      reason: 'database_unreachable'
+    }]]);
+    assert.equal(JSON.stringify(logs).includes('secret'), false);
+  });
+});
+
 test('Prisma schema errors include only allowlisted diagnostic metadata', async () => {
   await captureLogs(logs => {
     logError('Health check failed', Object.assign(new Error(secret), {

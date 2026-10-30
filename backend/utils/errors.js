@@ -12,6 +12,16 @@ const safeErrorNames = new Set([
   'PrismaClientKnownRequestError',
   'PrismaClientValidationError'
 ]);
+function safeErrorReason(error) {
+  const message = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
+  if (/can't reach database server|connection refused|connection terminated|server closed the connection/.test(message)) return 'database_unreachable';
+  if (/authentication failed|password authentication failed/.test(message)) return 'database_authentication';
+  if (/environment variable .* not found|invalid .*database url|datasource .* is missing/.test(message)) return 'database_configuration';
+  if (/timed out|timeout|pool timeout/.test(message)) return 'database_timeout';
+  if (/prepared statement/.test(message)) return 'database_pooler_compatibility';
+  if (/query engine|engine binary|could not locate/.test(message)) return 'prisma_engine';
+  return undefined;
+}
 
 function logError(operation, error) {
   const details = {};
@@ -21,6 +31,10 @@ function logError(operation, error) {
   }
   if (typeof code === 'string' && safeCodes.has(code)) {
     details.code = code;
+  }
+  if (safeErrorNames.has(error?.name)) {
+    const reason = safeErrorReason(error);
+    if (reason) details.reason = reason;
   }
   if (Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599) {
     details.status = error.status;
