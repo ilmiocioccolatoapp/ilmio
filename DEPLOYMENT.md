@@ -51,7 +51,7 @@ The current Supabase security advisor also reports that leaked-password protecti
    npm run db:backup -- /secure/path/staging-before-release.dump
    ```
 
-2. Check `npx prisma migrate status`. If this is an existing database with no migration history, compare its schema with `202610300001_baseline/migration.sql`; only when they match, record that baseline with `npm run prisma:baseline`. Then apply the reviewed migrations:
+2. Check `npx prisma migrate status`. If this is an existing database with no migration history, compare its schema with `202610300001_baseline/migration.sql`; only when the legacy schema matches, record that baseline with `npm run prisma:baseline`. The baseline represents `Category.id` uniqueness as a constraint, matching Il Mio Production. The following migration also handles the older standalone-index form. Then apply the reviewed migrations:
 
    ```sh
    npm run prisma:deploy

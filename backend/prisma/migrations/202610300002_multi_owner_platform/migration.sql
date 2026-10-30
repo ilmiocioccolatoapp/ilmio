@@ -3,8 +3,10 @@ BEGIN;
 -- DropForeignKey
 ALTER TABLE "Product" DROP CONSTRAINT "Product_category_fkey";
 
--- DropIndex
-DROP INDEX "Category_id_key";
+-- Existing Il Mio uses a unique constraint here. Support older installations
+-- that may have recorded the baseline as a standalone unique index instead.
+ALTER TABLE "Category" DROP CONSTRAINT IF EXISTS "Category_id_key";
+DROP INDEX IF EXISTS "Category_id_key";
 
 -- DropIndex
 DROP INDEX "Category_order_idx";

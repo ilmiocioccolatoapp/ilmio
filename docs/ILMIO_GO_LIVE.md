@@ -5,7 +5,7 @@ This runbook covers the first migration from the single-brand Il Mio schema to t
 ## Release readiness
 
 - [x] The local migration chain includes a legacy baseline, Il Mio data backfill, and legacy-route adoption monitoring.
-- [x] The live legacy `Category` and `Product` schema was checked read-only against the baseline. Columns, defaults, indexes, foreign key, and RLS flags match.
+- [x] The live legacy `Category` and `Product` schema was checked read-only against the baseline. Columns, defaults, foreign key, and RLS flags match. The unique `Category.id` key is represented as a constraint in Production, so the baseline and backfill migration now match and safely handle either constraint or standalone-index form.
 - [x] The live catalog currently has 8 categories and 19 products; all product prices pass the migration format check, and products have valid legacy category references.
 - [x] The Flutter flow uses Store ID and password, skips brand choice for one assigned menu, shows a selector for multiple menus, stores tokens with `flutter_secure_storage`, and expires offline access after 72 hours.
 - [x] A release migration removes direct Data API execute access from the existing Supabase `public.rls_auto_enable()` SECURITY DEFINER helper, if present, without removing its event trigger.
@@ -134,7 +134,7 @@ The release APK is written to `mobile/build/app/outputs/flutter-apk/app-release.
 Only after the local production-copy migration rehearsal and separate restore rehearsal pass:
 
 1. Take and verify a fresh production backup outside the workspace.
-2. Confirm the production baseline status. The currently observed production schema matches the checked-in legacy baseline, but still verify migration history immediately before release.
+2. Confirm the production baseline status. The currently observed production schema matches the checked-in legacy baseline, including the named unique constraint on `Category.id`; still verify migration history immediately before release.
 3. Apply the reviewed baseline adoption, if needed, and migrations `202610300002_multi_owner_platform`, `202610300003_legacy_route_monitoring`, and `202610300004_revoke_public_rls_trigger` with `npm run prisma:deploy` from a controlled operator shell. Never run migrations as part of a Vercel build or startup.
 4. Configure production API environment values and deploy the API/admin commit. Keep the legacy routes enabled and monitor the 30-day adoption report.
 5. Set up the Platform Admin, invite the Il Mio Brand Admin, initialize the store password, and verify `/healthz`, `/api/admin/me`, `/api/auth/store/login`, and `/api/menu`.

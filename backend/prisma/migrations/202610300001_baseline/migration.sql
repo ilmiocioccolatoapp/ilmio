@@ -31,8 +31,8 @@ CREATE TABLE "Product" (
     CONSTRAINT "Product_pkey" PRIMARY KEY ("dbId")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "Category_id_key" ON "Category"("id");
+-- The live Il Mio database represents this unique key as a constraint.
+ALTER TABLE "Category" ADD CONSTRAINT "Category_id_key" UNIQUE ("id");
 
 -- CreateIndex
 CREATE INDEX "Category_order_idx" ON "Category"("order");
