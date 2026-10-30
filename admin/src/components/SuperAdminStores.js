@@ -6,6 +6,7 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const loadStores = async () => {
     setError('');
@@ -44,7 +45,7 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
     return () => {
       active = false;
     };
-  }, [organizations]);
+  }, [organizations, reloadKey]);
 
   return (
     <div className="page-container super-admin-stores">
@@ -58,9 +59,14 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
         </button>
       </div>
 
-      {error && <div className="data-error" role="alert">{error}</div>}
       {loading ? (
         <p role="status">Loading stores…</p>
+      ) : error ? (
+        <div className="ledger-card" role="alert">
+          <h2>Could not load stores</h2>
+          <p>{error}</p>
+          <button className="btn btn-primary" onClick={() => setReloadKey(key => key + 1)}>Try again</button>
+        </div>
       ) : stores.length ? (
         <div className="store-card-grid" aria-label="All stores">
           {stores.map(store => (

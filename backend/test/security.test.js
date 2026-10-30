@@ -114,6 +114,21 @@ test('database errors retain an allowlisted diagnostic code without connection s
   });
 });
 
+test('Prisma initialization errors log their allowlisted provider error code', async () => {
+  await captureLogs(logs => {
+    logError('Database connection failed', Object.assign(new Error(secret), {
+      name: 'PrismaClientInitializationError',
+      errorCode: 'P1001',
+      message: secret
+    }));
+    assert.deepEqual(logs, [['Database connection failed', {
+      name: 'PrismaClientInitializationError',
+      code: 'P1001'
+    }]]);
+    assert.equal(JSON.stringify(logs).includes(secret), false);
+  });
+});
+
 test('Prisma schema errors include only allowlisted diagnostic metadata', async () => {
   await captureLogs(logs => {
     logError('Health check failed', Object.assign(new Error(secret), {

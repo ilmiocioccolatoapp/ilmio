@@ -15,11 +15,12 @@ const safeErrorNames = new Set([
 
 function logError(operation, error) {
   const details = {};
+  const code = error?.code || error?.errorCode;
   if (safeErrorNames.has(error?.name)) {
     details.name = error.name;
   }
-  if (safeCodes.has(error?.code)) {
-    details.code = error.code;
+  if (typeof code === 'string' && safeCodes.has(code)) {
+    details.code = code;
   }
   if (Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599) {
     details.status = error.status;
