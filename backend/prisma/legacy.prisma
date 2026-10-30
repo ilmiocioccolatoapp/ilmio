@@ -14,8 +14,8 @@ model Category {
   name      String
   icon      String    @default("📦")
   order     Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
   products  Product[]
 
   @@index([order])
@@ -31,8 +31,8 @@ model Product {
   ingredients   String
   price         String
   available     Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @default(now()) @updatedAt @db.Timestamptz(3)
   categoryRef   Category @relation(fields: [category], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([category])

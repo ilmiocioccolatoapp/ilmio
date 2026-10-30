@@ -37,6 +37,10 @@ Keep the service-role key and database connection string in the API project only
 
 Run every migration on a staging database first. The repository’s `npm run test:integration` uses a disposable local PostgreSQL cluster and checks the migration chain; it does not access a staging or production database.
 
+**Current release gate:** Vercel Preview is currently assigned the same database and Supabase Auth environment values as Production. Do not smoke-test the Preview API, send test invites, or run account/bootstrap scripts there. First replace Preview values with isolated staging Postgres and Supabase Auth credentials for both Vercel projects. The existing Supabase projects contain live data and are not disposable staging targets.
+
+The current Supabase security advisor also reports that leaked-password protection is disabled and that `public.rls_auto_enable()` is an executable `SECURITY DEFINER` function. Migration `202610300004_revoke_public_rls_trigger` removes direct `PUBLIC`, `anon`, and `authenticated` execute grants from that event-trigger helper when it exists, while preserving the trigger. Enable leaked-password protection in Supabase Auth settings before sending real setup emails. Review the remaining advisor findings as part of the release check.
+
 1. Use a staging database that matches the existing single-brand schema. Keep a pre-migration backup with `DATABASE_URL` set to staging:
 
    ```sh
@@ -60,7 +64,7 @@ Run every migration on a staging database first. The repository’s `npm run tes
    RESTORE_DATABASE_URL='postgresql://…/ilmio_restore_staging' npm run db:restore-check -- /secure/path/staging-after-release.dump
    ```
 
-5. After staging and restore checks pass, back up production, verify/adopt the production baseline if needed, and apply the same migration commit using `npm run prisma:deploy` with production `DATABASE_URL` from a controlled operator environment. Then deploy the API and admin projects. Do not put `prisma migrate deploy` in `vercel.json`, a build command, or startup code. Never use `prisma db push` in production.
+5. After staging and restore checks pass, back up production, verify/adopt the production baseline if needed, and apply the same migration commit using `npm run prisma:deploy` with production `DATABASE_URL` from a controlled operator environment. This applies migrations `202610300002_multi_owner_platform`, `202610300003_legacy_route_monitoring`, and `202610300004_revoke_public_rls_trigger`. Then deploy the API and admin projects. Do not put `prisma migrate deploy` in `vercel.json`, a build command, or startup code. Never use `prisma db push` in production.
 
 6. Verify `/healthz`, `/api/auth/store/login`, `/api/menu`, and `/api/admin/me`. The first healthy request to the new API stamps the legacy monitoring start time; confirm it appears in the adoption report.
 

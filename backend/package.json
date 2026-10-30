@@ -12,6 +12,9 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:baseline": "prisma migrate resolve --applied 202610300001_baseline",
     "test:integration": "node scripts/test-integration.js",
+    "admin:invite-platform": "node scripts/invite-platform-admin.js",
+    "admin:bootstrap-ilmio": "node scripts/bootstrap-ilmio-brand-admin.js",
+    "store:init-ilmio": "node scripts/initialize-ilmio-store.js",
     "db:backup": "node scripts/database-ops.js backup",
     "db:restore-check": "node scripts/database-ops.js restore-check",
     "legacy:adoption-report": "node scripts/legacy-adoption-report.js"

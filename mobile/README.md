@@ -58,13 +58,19 @@ the PATH to point to the correct folder).
 flutter pub get
 ```
 
-2. Configure API endpoint:
-
-Edit `lib/utils/constants.dart` and update the `baseUrl`:
+2. Configure the API endpoint at build time with `API_BASE_URL`:
 
 - **Android Emulator**: `http://10.0.2.2:5001/api`
 - **iOS Simulator**: `http://localhost:5001/api`
 - **Physical Device**: `http://YOUR_COMPUTER_IP:5001/api`
+
+For example, build against an isolated staging API with:
+
+```bash
+flutter build apk --release --dart-define=API_BASE_URL=https://staging-api.example.com/api
+```
+
+Do not point a test APK at a Vercel Preview deployment protected by Vercel SSO. The app cannot complete that browser challenge. Do not embed Vercel bypass tokens or Supabase server keys in the APK.
 
 ## Running the App
 

@@ -138,8 +138,8 @@ model Category {
   sortOrder Int       @default(0) @map("order")
   imageUrl  String?
   isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
   brand     Brand     @relation(fields: [brandId], references: [id], onDelete: Restrict)
   products  Product[]
 
@@ -164,8 +164,8 @@ model Product {
   isActive           Boolean                @default(true) @map("available")
   sortOrder          Int                    @default(0)
   metadata           Json?
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
+  createdAt          DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime               @default(now()) @updatedAt @db.Timestamptz(3)
   brand              Brand                  @relation(fields: [brandId], references: [id], onDelete: Restrict)
   category           Category               @relation(fields: [categoryId, brandId], references: [id, brandId], onDelete: Restrict, onUpdate: Restrict)
   overrides          ProductStoreOverride[]
