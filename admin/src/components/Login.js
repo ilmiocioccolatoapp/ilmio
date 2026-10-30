@@ -49,7 +49,7 @@ const Login = ({ configError, authError }) => {
       <section className="auth-card">
         <div className="auth-brand">
           <BakerySealIcon style={{ width: '28px', height: '28px', color: 'var(--accent)' }} />
-          <p>Il Mio Cioccolato</p>
+          <p>Menu Platform</p>
         </div>
         <h1>Admin sign in</h1>
         <p className="auth-description">Sign in with your authorized account.</p>
