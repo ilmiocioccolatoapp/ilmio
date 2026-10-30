@@ -74,5 +74,5 @@ function createStoreAuth(db) {
     req.store=session.store;req.storeSession=session;res.set('X-Store-Id',session.storeId);next();
   };
 }
-function password(value){if(typeof value!=='string'||value.length<10||value.length>1024)fail(400,'Password must contain 10–1024 characters.');return value;}
+function password(value){if(typeof value!=='string'||value.length<6||value.length>1024)fail(400,'Password must contain 6–1024 characters.');return value;}
 module.exports={hash,verify,password,login,verifyPassword,refresh,createStoreAuth};

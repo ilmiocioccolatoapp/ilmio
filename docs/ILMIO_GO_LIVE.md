@@ -107,7 +107,7 @@ The script is idempotent for the matching account and brand. It stops if the pro
 
 ## 5. Initialize the Il Mio tablet login
 
-Choose a unique store password of at least 20 characters and deliver it to the store operator through an approved password manager. Load it as `ILMIO_INITIAL_STORE_PASSWORD` in a protected operator shell. The script replaces only the one-time `!reset-required` migration placeholder with an Argon2id hash and refuses to overwrite an initialized password:
+Choose a unique store password of at least 6 characters and deliver it to the store operator through an approved password manager. Load it as `ILMIO_INITIAL_STORE_PASSWORD` in a protected operator shell. The script replaces only the one-time `!reset-required` migration placeholder with an Argon2id hash and refuses to overwrite an initialized password:
 
 ```sh
 npm run store:init-ilmio

@@ -204,9 +204,39 @@ test('Platform Admin can find tablet credentials from Stores & owners', async ()
   await flush(() => emit('TOKEN_REFRESHED',{...session,access_token:'platform-store-token'}));
   await flush(() => button('Stores & owners').click());
   expect(element.textContent).toContain('Stores & tablet access');
-  expect(element.textContent).toContain('Tablet login details — Owner');
+  await flush(() => element.querySelector('.branch-card').click());
+  expect(element.textContent).toContain('Tablet Store ID: ilmio-main');
   expect(element.textContent).toContain('Store ID: ilmio-main');
   expect(element.textContent).toContain('Set — hidden for security');
   expect(button('Show login QR')).toBeDefined();
-  expect(button('Reset password')).toBeDefined();
+  expect(button('Reset tablet password')).toBeDefined();
+  await flush(() => button('Reset tablet password').click());
+  expect(element.querySelector('input[type="password"]').minLength).toBe(6);
+});
+
+test('opening a store card scopes the brand menu editor to that branch', async () => {
+  const platformUser={...membership,isPlatformAdmin:true,orgs:[{id:'org-1',name:'Owner'}],id:'admin-1',email:'platform@example.test'};
+  authService.getCurrentUser.mockResolvedValue(platformUser);
+  platformService.get.mockImplementation(path => {
+    if(path==='/orgs/org-1/stores') return Promise.resolve([{
+      id:'store-1',orgId:'org-1',name:'Main branch',loginCode:'main-branch',status:'active',passwordConfigured:true,
+      assignments:[{id:'assignment-1',brand:{id:'brand-1',name:'Il Mio'},status:'active',unpublishedChanges:false}]
+    }]);
+    if(path==='/brands/brand-1/stores') return Promise.resolve([{
+      id:'assignment-1',storeId:'store-1',store:{id:'store-1',name:'Main branch'},status:'active',overrides:[]
+    }]);
+    return Promise.resolve([]);
+  });
+  await flush(() => emit('TOKEN_REFRESHED',{...session,access_token:'platform-branch-menu-token'}));
+  await flush(() => button('Stores & owners').click());
+  await flush(() => element.querySelector('.branch-card').click());
+  expect(element.textContent).toContain('Menus at this branch');
+  await flush(() => button('Manage branch menu').click());
+  expect(element.textContent).toContain('Main branch — Il Mio menu');
+  expect(element.textContent).toContain('Publish to this store');
+  expect(button('← Back to branch')).toBeDefined();
+  await flush(() => button('← Back to branch').click());
+  expect(element.textContent).toContain('Tablet Store ID: main-branch');
+  await flush(() => button('← All stores').click());
+  expect(element.querySelector('.branch-card')).not.toBeNull();
 });

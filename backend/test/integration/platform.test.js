@@ -71,6 +71,16 @@ test('platform provisioning is invite-only and brand operations are role scoped'
  assert.equal(authUsers.has('brandlead@example.test'),true);
  assert.equal((await call('/admin/me',{actor:'brandlead'})).status,403);
 });
+test('store create and reset accept six-character passwords and reject shorter values',async()=>{
+ const details={name:'Branch password test',slug:'branch-password-test',loginCode:'branch-password-test',password:'abcde'};
+ assert.equal((await call('/admin/orgs/org-a/stores',{method:'POST',body:details})).status,400);
+ const created=await call('/admin/orgs/org-a/stores',{method:'POST',body:{...details,password:'abc123'}});
+ assert.equal(created.status,201);
+ const storeId=created.body.data.id;
+ assert.equal(created.body.data.passwordConfigured,true);
+ assert.equal((await call('/admin/orgs/org-a/stores/'+storeId+'/password',{method:'POST',body:{newPassword:'12345'}})).status,400);
+ assert.equal((await call('/admin/orgs/org-a/stores/'+storeId+'/password',{method:'POST',body:{newPassword:'123456'}})).status,204);
+});
 let ca,cb,pa,pb;
 test('two independent owners can reuse category codes; APIs and DB reject cross-brand attaches',async()=>{
  ca=await ok('/admin/brands/brand-a/categories',{actor:'brandA',method:'POST',body:{code:'drinks',name:'A drinks'}});

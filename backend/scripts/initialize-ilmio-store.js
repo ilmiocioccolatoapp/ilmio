@@ -23,8 +23,8 @@ async function main() {
     }
 
     const value = process.env.ILMIO_INITIAL_STORE_PASSWORD;
-    if (typeof value !== 'string' || value.length < 20 || value.length > 1024) {
-      throw new Error('Set ILMIO_INITIAL_STORE_PASSWORD to a unique password of at least 20 characters in a secure shell.');
+    if (typeof value !== 'string' || value.length < 6 || value.length > 1024) {
+      throw new Error('Set ILMIO_INITIAL_STORE_PASSWORD to a unique password of at least 6 characters in a secure shell.');
     }
     const passwordHash = await hash(value);
     await db.$transaction(async tx => {
