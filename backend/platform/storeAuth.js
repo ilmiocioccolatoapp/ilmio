@@ -11,7 +11,7 @@ function key(){const k=process.env.STORE_JWT_SECRET;if(!k || Buffer.byteLength(k
 function sign(store,session){return jwt.sign({realm:'store',storeId:store.id,orgId:store.orgId,sessionId:session.id,tokenVersion:store.tokenVersion},key(),{algorithm:'HS256',audience:'store',issuer:'ilmio-store',expiresIn:'15m'});}
 const newRefresh=id=>id+'.'+crypto.randomBytes(48).toString('base64url');
 async function lock(db,value){await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${value}))`;}
-async function login(db,body,ip) {
+async function authenticate(db,body,ip,createSession) {
   key();
   const identifier=typeof body.loginCode==='string'?body.loginCode.trim().toLowerCase().slice(0,100):'';
   const password=typeof body.password==='string' && body.password.length<=1024?body.password:'';
@@ -37,6 +37,7 @@ async function login(db,body,ip) {
     }
     await tx.loginAttempt.create({data:{realm:'store',identifier,ip,success:true}});
     await tx.store.update({where:{id:store.id},data:{lastLoginAt:new Date(),failedLogins:0,lockedUntil:null}});
+    if(!createSession)return {verified:true};
     const id=crypto.randomUUID(),refreshToken=newRefresh(id);
     const session=await tx.storeSession.create({data:{id,storeId:store.id,tokenVersion:store.tokenVersion,refreshHash:await hash(refreshToken),expiresAt:new Date(Date.now()+30*86400000),deviceLabel:typeof body.deviceLabel==='string'?body.deviceLabel.slice(0,100):null}});
     return {accessToken:sign(store,session),refreshToken,store:{id:store.id,name:store.name,orgId:store.orgId}};
@@ -45,6 +46,8 @@ async function login(db,body,ip) {
   if(result.invalid)fail(401,'Invalid store ID or password.');
   return result;
 }
+const login=(db,body,ip)=>authenticate(db,body,ip,true);
+const verifyPassword=(db,body,ip)=>authenticate(db,body,ip,false);
 async function refresh(db,value) {
   key();
   if(typeof value!=='string' || value.length>512 || !/^[a-f0-9-]{36}\.[A-Za-z0-9_-]{64}$/.test(value))fail(401,'Invalid store session.');
@@ -72,4 +75,4 @@ function createStoreAuth(db) {
   };
 }
 function password(value){if(typeof value!=='string'||value.length<10||value.length>1024)fail(400,'Password must contain 10–1024 characters.');return value;}
-module.exports={hash,verify,password,login,refresh,createStoreAuth};
+module.exports={hash,verify,password,login,verifyPassword,refresh,createStoreAuth};

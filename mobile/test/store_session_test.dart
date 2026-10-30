@@ -127,6 +127,39 @@ void main() {
     expect(controller.menu, isNotNull);
     controller.dispose();
   });
+  test('password confirmation verifies credentials without creating a session',
+      () async {
+    final requests = <String>[];
+    final controller = StoreSessionController(
+        vault: MemoryVault(),
+        cache: MemoryCache(),
+        client: MockClient((req) async {
+          requests.add(req.url.path);
+          if (req.url.path.endsWith('/verify-password')) {
+            expect(jsonDecode(req.body)['loginCode'], 'downtown');
+            expect(jsonDecode(req.body)['password'], 'correct-password');
+            return http.Response('', 204);
+          }
+          if (req.method == 'GET') return response(envelope('downtown'));
+          if (req.url.path.endsWith('/login')) {
+            expect(jsonDecode(req.body)['loginCode'], 'downtown');
+            expect(jsonDecode(req.body)['password'], 'correct-password');
+            return response(loginResponse('downtown'));
+          }
+          expect(req.url.path.endsWith('/logout'), isTrue);
+          expect(req.headers['Authorization'], 'Bearer access-downtown');
+          return http.Response('', 204);
+        }));
+    await controller.login('downtown', 'correct-password');
+    final requestsAfterSignIn = requests.length;
+
+    await controller.verifyPassword('downtown', 'correct-password');
+
+    expect(requests.skip(requestsAfterSignIn),
+        ['/api/auth/store/verify-password']);
+    expect(controller.signedIn, isTrue);
+    controller.dispose();
+  });
   test(
       'logout/store switch rejects a late response and cannot repopulate the previous cache',
       () async {

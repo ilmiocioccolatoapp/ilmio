@@ -1276,6 +1276,21 @@ p, .section-subtitle {
 .ledger-card { margin-bottom:20px; }
 .store-record { padding:16px 0; border-bottom:1px solid var(--border); }
 .store-actions { margin:16px 0; }
+.management-help { margin: -8px 0 20px; color: var(--ink-secondary); }
+.tablet-access { border-color: var(--border-strong); }
+.tablet-store-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; }
+.tablet-store-heading h4 { margin-bottom:8px; }
+.tablet-store-heading p { margin:4px 0; }
+.tablet-store-heading .store-actions { margin:0; justify-content:flex-end; }
+.store-assignment { display:inline-block; margin:4px 8px 0 0; padding:3px 8px; border-radius:999px; background:var(--surface-warm); }
+.management-advanced { padding:14px 18px; }
+.management-advanced summary { cursor:pointer; font-weight:700; color:var(--primary-ink); }
+.management-advanced[open] summary { margin-bottom:16px; }
+.management-advanced form > p { margin:12px 0; }
+@media (max-width:640px) {
+  .tablet-store-heading { flex-direction:column; }
+  .tablet-store-heading .store-actions { justify-content:flex-start; }
+}
 .menu-table { width:100%; border-collapse:collapse; margin-top:20px; }
 .menu-table th,.menu-table td { text-align:left; padding:12px; border-bottom:1px solid var(--border); }
 .menu-table input:not([type=checkbox]) { width:150px; }

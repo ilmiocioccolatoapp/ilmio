@@ -194,3 +194,19 @@ test('Platform Admin can create brands and invite brand administrators from the 
   expect(platformService.post).toHaveBeenCalledWith('/brands/brand-1/admins',expect.objectContaining({email:'brandadmin@example.test'}));
   expect(element.textContent).toContain('Invitation email sent');
 });
+
+test('Platform Admin can find tablet credentials from Stores & owners', async () => {
+  const platformUser={...membership,isPlatformAdmin:true,orgs:[{id:'org-1',name:'Owner'}],id:'admin-1',email:'platform@example.test'};
+  authService.getCurrentUser.mockResolvedValue(platformUser);
+  platformService.get.mockImplementation(path => Promise.resolve(path.endsWith('/stores') ? [{
+    id:'store-1',name:'Main store',loginCode:'ilmio-main',status:'active',passwordConfigured:true,assignments:[]
+  }] : []));
+  await flush(() => emit('TOKEN_REFRESHED',{...session,access_token:'platform-store-token'}));
+  await flush(() => button('Stores & owners').click());
+  expect(element.textContent).toContain('Stores & tablet access');
+  expect(element.textContent).toContain('Tablet login details — Owner');
+  expect(element.textContent).toContain('Store ID: ilmio-main');
+  expect(element.textContent).toContain('Set — hidden for security');
+  expect(button('Show login QR')).toBeDefined();
+  expect(button('Reset password')).toBeDefined();
+});

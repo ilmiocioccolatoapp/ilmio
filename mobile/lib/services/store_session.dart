@@ -109,6 +109,7 @@ class StoreSessionController extends ChangeNotifier {
         baseUrl = baseUrl ?? AppConstants.baseUrl;
   bool get signedIn => _identity != null;
   String? get storeId => _identity?['storeId'];
+  String? get loginCode => _identity?['loginCode'] as String?;
   String get storeName => _identity?['storeName'] ?? 'Store';
   bool get _withinOfflineWindow {
     final value = DateTime.tryParse(_identity?['authorizedAt'] ?? '');
@@ -203,7 +204,7 @@ class StoreSessionController extends ChangeNotifier {
     _emit();
     try {
       final data = _decode(await _post('/auth/store/login', {
-        'loginCode': loginCode,
+        'loginCode': loginCode.trim(),
         'password': password,
         'deviceLabel': 'Store tablet'
       }));
@@ -213,6 +214,7 @@ class StoreSessionController extends ChangeNotifier {
         'storeId': store['id'],
         'orgId': store['orgId'],
         'storeName': store['name'],
+        'loginCode': loginCode.trim(),
         'refreshToken': data['refreshToken']
       };
       _accessToken = data['accessToken'];
@@ -237,6 +239,13 @@ class StoreSessionController extends ChangeNotifier {
         _emit();
       }
     }
+  }
+
+  Future<void> verifyPassword(String loginCode, String password) async {
+    _decode(await _post('/auth/store/verify-password', {
+      'loginCode': loginCode.trim(),
+      'password': password,
+    }));
   }
 
   Future<void> _refresh(int generation) async {

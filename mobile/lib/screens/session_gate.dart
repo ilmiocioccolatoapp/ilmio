@@ -75,11 +75,104 @@ class _SessionGateState extends State<SessionGate> with WidgetsBindingObserver {
                       TextButton(
                           onPressed: () async {
                             Navigator.pop(ctx);
-                            selectedBrand = null;
-                            await controller.logout();
+                            await confirmLogout();
                           },
                           child: const Text('Log out'))
                     ]))));
+  }
+
+  Future<void> confirmLogout() async {
+    final loginCode =
+        TextEditingController(text: controller.loginCode ?? code.text.trim());
+    final secret = TextEditingController();
+    var verifying = false;
+    String? verificationError;
+    final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) =>
+            StatefulBuilder(builder: (context, setDialogState) {
+              Future<void> verify() async {
+                if (secret.text.isEmpty || loginCode.text.trim().isEmpty) {
+                  setDialogState(() => verificationError =
+                      'Enter the store ID and password to continue.');
+                  return;
+                }
+                setDialogState(() {
+                  verifying = true;
+                  verificationError = null;
+                });
+                try {
+                  await controller.verifyPassword(loginCode.text, secret.text);
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop(true);
+                  }
+                } on StoreFailure catch (error) {
+                  if (dialogContext.mounted) {
+                    setDialogState(() => verificationError = error.status == 401
+                        ? 'Incorrect store ID or password.'
+                        : error.status == 429
+                            ? 'Too many attempts. Try again later.'
+                            : error.message);
+                  }
+                } catch (_) {
+                  if (dialogContext.mounted) {
+                    setDialogState(() => verificationError =
+                        'Could not verify the password. Check the connection and try again.');
+                  }
+                } finally {
+                  if (dialogContext.mounted) {
+                    setDialogState(() => verifying = false);
+                  }
+                }
+              }
+
+              return AlertDialog(
+                  title: const Text('Confirm logout'),
+                  content: Column(mainAxisSize: MainAxisSize.min, children: [
+                    if ((controller.loginCode ?? code.text.trim()).isEmpty)
+                      TextField(
+                          controller: loginCode,
+                          autofocus: true,
+                          autocorrect: false,
+                          decoration:
+                              const InputDecoration(labelText: 'Store ID')),
+                    TextField(
+                        controller: secret,
+                        autofocus: (controller.loginCode ?? code.text.trim())
+                            .isNotEmpty,
+                        obscureText: true,
+                        decoration:
+                            const InputDecoration(labelText: 'Store password'),
+                        onSubmitted: (_) => verify()),
+                    if (verificationError != null)
+                      Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Text(verificationError!,
+                              style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error)))
+                  ]),
+                  actions: [
+                    TextButton(
+                        onPressed:
+                            verifying ? null : () => Navigator.pop(context),
+                        child: const Text('Cancel')),
+                    FilledButton(
+                        onPressed: verifying ? null : verify,
+                        child: verifying
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('Log out'))
+                  ]);
+            }));
+    loginCode.dispose();
+    secret.dispose();
+    if (confirmed == true && mounted) {
+      selectedBrand = null;
+      await controller.logout();
+    }
   }
 
   @override
@@ -189,22 +282,28 @@ class _SessionGateState extends State<SessionGate> with WidgetsBindingObserver {
                   key: ValueKey(
                       '${controller.storeId}:${brand['id']}:${brand['menuVersion']}'),
                   apiService: PublishedBrandApi(brand),
-                  brandName: brand['name'])),
+                  brandName: brand['name'],
+                  headerLeadingAction: brands.length > 1
+                      ? IconButton(
+                          onPressed: () => setState(() => selectedBrand = null),
+                          icon: const Icon(Icons.storefront),
+                          color: Colors.white,
+                          tooltip: 'Switch brand')
+                      : null,
+                  headerTrailingAction: const SizedBox(width: 104))),
           Positioned(
               top: 8,
-              left: 8,
+              right: 8,
               child: SafeArea(
-                  child: Row(children: [
-                if (brands.length > 1)
-                  FilledButton.tonalIcon(
-                      onPressed: () => setState(() => selectedBrand = null),
-                      icon: const Icon(Icons.storefront),
-                      label: const Text('Brands')),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (controller.offline)
+                  const Padding(
+                      padding: EdgeInsets.only(right: 4),
+                      child: Chip(label: Text('Offline'))),
                 IconButton.filledTonal(
                     onPressed: settings,
                     icon: const Icon(Icons.settings),
-                    tooltip: 'Settings'),
-                if (controller.offline) const Chip(label: Text('Offline'))
+                    tooltip: 'Settings')
               ])))
         ])));
   }

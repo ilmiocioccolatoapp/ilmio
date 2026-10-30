@@ -43,6 +43,10 @@ test('migration preserves original IDs, data and published legacy shape',async()
  const hit=await db.legacyRouteHit.findFirst({where:{route:'categories'},orderBy:{at:'desc'}});assert.equal(hit.userAgent,'legacy-tablet/1.0');assert.ok(hit.ip);assert.ok(hit.at instanceof Date);
 });
 test('platform provisioning is invite-only and brand operations are role scoped',async()=>{
+ const storeCredentials=await call('/admin/orgs/org-a/stores');
+ assert.equal(storeCredentials.status,200);
+ assert.equal(storeCredentials.body.data.find(store=>store.id==='downtown').passwordConfigured,true);
+ assert.equal(Object.hasOwn(storeCredentials.body.data[0],'passwordHash'),false);
  const orgBrand=(await call('/admin/brands',{actor:'ownerA',method:'POST',body:{orgId:'org-a',name:'Forbidden Brand',slug:'forbidden'}}));assert.equal(orgBrand.status,403);
  const created=await ok('/admin/brands',{method:'POST',body:{orgId:'org-a',name:'Provisioned Brand',slug:'provisioned'}});assert.equal(created.slug,'provisioned');
  assert.equal((await call('/admin/brands/brand-a/categories',{actor:'ownerA'})).status,404);
@@ -91,6 +95,11 @@ test('only Super Admin authorizes cross-owner assignments; physical stores stay 
  const list=await ok('/admin/brands/brand-b/stores',{actor:'brandB'});assert.equal(list.length,1);assert.equal(list[0].store.id,'downtown');
 });
 let downtown,marina;
+test('store password verification does not create a session',async()=>{
+ const existingSessions=await db.storeSession.count();
+ const valid=await call('/auth/store/verify-password',{actor:null,method:'POST',body:{loginCode:'downtown',password:'tablet-password-123'}});
+ assert.equal(valid.status,204);assert.equal(await db.storeSession.count(),existingSessions);
+});
 test('published snapshots, store isolation, overrides, ETags and realms',async()=>{
  await ok('/admin/brands/brand-a/publish',{actor:'brandA',method:'POST',body:{}});
  await ok('/admin/brands/brand-b/publish',{actor:'brandB',method:'POST',body:{}});

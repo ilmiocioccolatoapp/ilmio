@@ -11,11 +11,19 @@ import '../widgets/product_card.dart';
 import '../widgets/product_details_page.dart';
 
 class GalleryScreen extends StatefulWidget {
-  const GalleryScreen({super.key, this.apiService, this.brandName = 'Menu'});
+  const GalleryScreen({
+    super.key,
+    this.apiService,
+    this.brandName = 'Menu',
+    this.headerLeadingAction,
+    this.headerTrailingAction,
+  });
 
   final String brandName;
 
   final ApiService? apiService;
+  final Widget? headerLeadingAction;
+  final Widget? headerTrailingAction;
 
   @override
   State<GalleryScreen> createState() => _GalleryScreenState();
@@ -575,7 +583,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
       ),
       child: Row(
         children: [
-          // Back button — only in menu mode
           if (_menuMode)
             TextButton.icon(
               onPressed: _exitMenuMode,
@@ -601,27 +608,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
               ),
             )
           else
-            const SizedBox(width: 88),
-
-          Expanded(
-            child: _menuMode
-                ? Center(
-                    child: Text(
-                      widget.brandName,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: isTablet ? 24 : 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-
-          // Right side: open menu in attract mode, spacer in menu mode
-          if (!_menuMode)
             TextButton.icon(
               onPressed: _enterMenuMode,
               style: TextButton.styleFrom(
@@ -644,9 +630,25 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-            )
-          else
-            const SizedBox(width: 88),
+            ),
+          if (widget.headerLeadingAction != null) widget.headerLeadingAction!,
+          Expanded(
+            child: _menuMode
+                ? Center(
+                    child: Text(
+                      widget.brandName,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: isTablet ? 24 : 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+          widget.headerTrailingAction ?? const SizedBox(width: 56),
         ],
       ),
     );

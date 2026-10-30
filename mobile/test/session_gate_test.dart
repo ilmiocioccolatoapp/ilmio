@@ -105,6 +105,28 @@ void main() {
     expect(find.text('Store sign in'), findsNothing);
   });
 
+  testWidgets('settings stays at the top right instead of overlapping Back',
+      (tester) async {
+    final controller = await signedIn(['Il Mio']);
+    addTearDown(controller.dispose);
+
+    await tester
+        .pumpWidget(MaterialApp(home: SessionGate(controller: controller)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.text('No Products in this Category'));
+    await tester.pump();
+
+    final back = tester.getCenter(find.text('Back'));
+    final settings = tester.getCenter(find.byTooltip('Settings'));
+    expect(back.dx, lessThan(settings.dx));
+    expect(
+        settings.dx,
+        greaterThan(
+            tester.view.physicalSize.width / tester.view.devicePixelRatio / 2));
+    expect(settings.dy, lessThan(100));
+  });
+
   testWidgets('a store assigned to multiple brands can choose a menu',
       (tester) async {
     final controller = await signedIn(['Il Mio', 'Second Brand']);

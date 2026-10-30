@@ -4,7 +4,7 @@ const qrcode=require('qrcode');
 const cloudinary=require('cloudinary').v2;
 const {wrap,fail,text,code,money,bool,order,timezone,imageUrl}=require('./http');
 const {createAdminAuth,brandOpsScope,brandCatalogScope,platformAdminScope,brandWhere}=require('./auth');
-const {hash,password,login,refresh,createStoreAuth}=require('./storeAuth');
+const {hash,password,login,verifyPassword,refresh,createStoreAuth}=require('./storeAuth');
 const {resolveMenu,publish,publishedMenu}=require('./menu');
 const {audit,lockBrand}=require('./audit');
 const {createProvisioningClients}=require('./provisioning');
@@ -26,6 +26,7 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
  const brandWrite=async(req,fn,affectedStoreId)=>{const b=await brand(req);return db.$transaction(async tx=>{await lockBrand(tx,b.id);const result=await fn(tx,b);await tx.storeBrand.updateMany({where:{brandId:b.id,...(affectedStoreId?{storeId:affectedStoreId}:{})},data:{unpublishedChanges:true}});return result;});};
  const record=async(tx,req,b,entity,id,action,diff)=>audit(tx,req.admin,{orgId:b.orgId,brandId:b.id},entity,id,action,diff);
  router.post('/auth/store/login',wrap(async(req,res)=>{res.set('Cache-Control','no-store');const result=await login(db,req.body,req.ip);const menu=await publishedMenu(db,result.store.id);res.json({...result,brands:menu.brands.map(({id,name,slug,logoUrl,currency,menuVersion})=>({id,name,slug,logoUrl,currency,menuVersion}))});}));
+ router.post('/auth/store/verify-password',wrap(async(req,res)=>{res.set('Cache-Control','no-store');await verifyPassword(db,req.body,req.ip);res.status(204).end();}));
  router.post('/auth/store/refresh',wrap(async(req,res)=>{res.set('Cache-Control','no-store');res.json(await refresh(db,req.body.refreshToken));}));
  router.post('/auth/store/logout',wrap(storeAuth),wrap(async(req,res)=>{await db.storeSession.update({where:{id:req.storeSession.id},data:{revokedAt:new Date()}});res.status(204).end();}));
  router.get('/menu',wrap(storeAuth),wrap(async(req,res)=>{
@@ -110,10 +111,14 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
    if(data.status!==undefined)await tx.store.updateMany({where:{assignments:{some:{brandId:b.id}}},data:{revision:{increment:1}}});
    await record(tx,req,b,'Brand',b.id,'update',data);return updated;
  }))));
- admin.get('/orgs/:orgId/stores',wrap(async(req,res)=>{await org(req);json(res)(await db.store.findMany({where:{orgId:req.params.orgId},select:{...storeSelect,assignments:{include:{brand:{select:{id:true,name:true,orgId:true}}}}},orderBy:{name:'asc'}}));}));
+ admin.get('/orgs/:orgId/stores',wrap(async(req,res)=>{
+   await org(req);
+   const stores=await db.store.findMany({where:{orgId:req.params.orgId},select:{...storeSelect,passwordHash:true,assignments:{include:{brand:{select:{id:true,name:true,orgId:true}}}}},orderBy:{name:'asc'}});
+   json(res)(stores.map(({passwordHash,...store})=>({...store,passwordConfigured:passwordHash?.startsWith('$argon2id$')??false})));
+ }));
  admin.post('/orgs/:orgId/stores',wrap(async(req,res)=>{
    await org(req);const passwordHash=await hash(password(req.body.password));
-   const result=await db.$transaction(async tx=>{const s=await tx.store.create({data:{orgId:req.params.orgId,name:text(req.body.name,'Store name'),slug:code(req.body.slug,'Store slug'),loginCode:code(req.body.loginCode,'Store login code'),passwordHash,timezone:timezone(req.body.timezone||'Asia/Dubai'),address:req.body.address?text(req.body.address,'Address',500):null},select:storeSelect});await audit(tx,req.admin,{orgId:s.orgId,storeId:s.id},'Store',s.id,'create');return s;});res.status(201).json({success:true,data:result});
+   const result=await db.$transaction(async tx=>{const s=await tx.store.create({data:{orgId:req.params.orgId,name:text(req.body.name,'Store name'),slug:code(req.body.slug,'Store slug'),loginCode:code(req.body.loginCode,'Store login code'),passwordHash,timezone:timezone(req.body.timezone||'Asia/Dubai'),address:req.body.address?text(req.body.address,'Address',500):null},select:storeSelect});await audit(tx,req.admin,{orgId:s.orgId,storeId:s.id},'Store',s.id,'create');return {...s,passwordConfigured:true};});res.status(201).json({success:true,data:result});
  }));
  async function ownedStore(req){await org(req);const s=await db.store.findFirst({where:{id:req.params.storeId,orgId:req.params.orgId}});if(!s)fail(404,'Store not found.');return s;}
  admin.put('/orgs/:orgId/stores/:storeId',wrap(async(req,res)=>{const s=await ownedStore(req);const data={};for(const f of ['name','slug','loginCode','timezone','address','phone','status'])if(req.body[f]!==undefined)data[f]=f==='status'?status(req.body[f]):f==='timezone'?timezone(req.body[f]):['slug','loginCode'].includes(f)?code(req.body[f],f):text(req.body[f],f,500);if(data.status && data.status!==s.status)data.tokenVersion={increment:1};data.revision={increment:1};json(res)(await db.$transaction(async tx=>{const result=await tx.store.update({where:{id:s.id},data,select:storeSelect});await audit(tx,req.admin,{orgId:s.orgId,storeId:s.id},'Store',s.id,'update',{fields:Object.keys(data)});return result;}));}));
