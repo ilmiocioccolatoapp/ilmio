@@ -66,6 +66,11 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
  admin.get('/me',wrap(me));
  router.get('/auth/me',wrap(adminAuth),wrap(me));
  admin.get('/orgs',wrap(async(req,res)=>{const orgIds=req.admin.orgMemberships.map(m=>m.orgId);json(res)(await db.organization.findMany({where:req.admin.isPlatformAdmin?{}:{id:{in:orgIds},status:'active'},orderBy:{name:'asc'}}));}));
+ admin.get('/stores',wrap(async(req,res)=>{
+   platformAdminScope(req.admin);
+   const stores=await db.store.findMany({select:{...storeSelect,passwordHash:true,org:{select:{name:true}},assignments:{include:{brand:{select:{id:true,name:true,orgId:true}}}}},orderBy:{name:'asc'}});
+   json(res)(stores.map(({passwordHash,org,...store})=>({...store,ownerName:org.name,passwordConfigured:passwordHash?.startsWith('$argon2id$')??false})));
+ }));
  admin.post('/orgs',wrap(async(req,res)=>{if(!req.admin.isPlatformAdmin)fail(403,'Platform administrator access is required.');const data=await db.$transaction(async tx=>{const o=await tx.organization.create({data:{name:text(req.body.name,'Organization name')}});await audit(tx,req.admin,{orgId:o.id},'Organization',o.id,'create');return o;});res.status(201).json({success:true,data});}));
  admin.put('/orgs/:orgId',wrap(async(req,res)=>{await org(req);const data=await db.$transaction(async tx=>{const o=await tx.organization.update({where:{id:req.params.orgId},data:{...(req.body.name!==undefined?{name:text(req.body.name,'Organization name')}:{}),...(req.body.status!==undefined?{status:status(req.body.status)}:{})}});if(req.body.status!==undefined){await tx.store.updateMany({where:{OR:[{orgId:o.id},{assignments:{some:{brand:{orgId:o.id}}}}]},data:{revision:{increment:1}}});}await audit(tx,req.admin,{orgId:o.id},'Organization',o.id,'update',{status:o.status});return o;});json(res)(data);}));
  admin.get('/brands',wrap(async(req,res)=>json(res)(await db.brand.findMany({where:brandWhere(req.admin),orderBy:{name:'asc'}}))));

@@ -39,12 +39,14 @@ function App(){
  const selectedBrandId=selectedBrand?.id;
  const canCatalog=Boolean(adminUser?.isPlatformAdmin||adminUser?.brandMemberships?.some(m=>m.brandId===selectedBrandId&&m.role==='BRAND_ADMIN'));
  const canManage=Boolean(adminUser&&(adminUser.isPlatformAdmin||adminUser.orgMemberships?.some(m=>m.orgId===selectedOrg?.id&&m.role==='ORG_ADMIN')));
+ const platformStoreDetail=Boolean(adminUser?.isPlatformAdmin&&activeTab==='stores'&&selectedStore);
+ const selectedStoreHasBrand=Boolean(!adminUser?.isPlatformAdmin||!platformStoreDetail||selectedStore?.assignments?.some(assignment=>assignment.status==='active'&&assignment.brand.id===selectedBrandId));
  const permissions=JSON.stringify([adminUser?.isPlatformAdmin,adminUser?.orgMemberships,adminUser?.brandMemberships]);
  const scopeKey=[userId,adminUser?.profileId,selectedOrg?.id,selectedBrand?.id,storeId,permissions].join(':');
  const scopeRef=useRef(scopeKey);scopeRef.current=scopeKey;
  useEffect(()=>{setShowForm(false);setEditingProduct(null);},[scopeKey]);
- useEffect(()=>{let current=true;setAssignments([]);if(selectedBrandId&&canCatalog)platformService.get('/brands/'+selectedBrandId+'/stores').then(data=>{if(current)setAssignments(data);}).catch(()=>{});return()=>{current=false;};},[selectedBrandId,canCatalog,accessToken]);
- const services=useMemo(()=>selectedBrandId&&canCatalog?createCatalogServices({id:selectedBrandId}):emptyServices,[selectedBrandId,canCatalog]);
+ useEffect(()=>{let current=true;setAssignments([]);if(selectedBrandId&&canCatalog&&selectedStoreHasBrand&&(!adminUser?.isPlatformAdmin||platformStoreDetail))platformService.get('/brands/'+selectedBrandId+'/stores').then(data=>{if(current)setAssignments(data);}).catch(()=>{});return()=>{current=false;};},[selectedBrandId,canCatalog,accessToken,adminUser?.isPlatformAdmin,platformStoreDetail,selectedStoreHasBrand]);
+ const services=useMemo(()=>selectedBrandId&&canCatalog&&selectedStoreHasBrand&&(!adminUser?.isPlatformAdmin||platformStoreDetail)?createCatalogServices({id:selectedBrandId}):emptyServices,[selectedBrandId,canCatalog,adminUser?.isPlatformAdmin,platformStoreDetail,selectedStoreHasBrand]);
  const reload=async()=>{const expected=userId,expectedScope=scopeKey;const next=await authService.getCurrentUser();if(next.id===expected&&scopeRef.current===expectedScope)setAdminUser(next);};
  const signOut=async()=>{setAuthorizationError('');try{const {error}=await supabase.auth.signOut({scope:'local'});if(error)setAuthorizationError(error.message);}catch(error){setAuthorizationError(error.message||'Could not sign out. Please try again.');}};
  if(!supabaseConfigured)return <Login configError="Configure Supabase to sign in."/>;

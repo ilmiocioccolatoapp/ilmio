@@ -216,7 +216,7 @@ test('Platform Admin lands on a simple store directory and creates a store from 
   };
   let storeFetches=0;
   platformService.get.mockImplementation(path => {
-    if(path==='/orgs/org-1/stores') return Promise.resolve(++storeFetches===1?[]:[createdStore]);
+    if(path==='/stores') return Promise.resolve(++storeFetches===1?[]:[createdStore]);
     return Promise.resolve([]);
   });
   platformService.post.mockImplementation(path => Promise.resolve(path.endsWith('/stores')?createdStore:{id:'assignment-new'}));
@@ -246,7 +246,7 @@ test('store cards open menu, categories, and tablet login for the selected store
   const platformUser={...membership,isPlatformAdmin:true,orgs:[{id:'org-1',name:'Owner'}],id:'admin-1',email:'platform@example.test'};
   authService.getCurrentUser.mockResolvedValue(platformUser);
   platformService.get.mockImplementation(path => {
-    if(path==='/orgs/org-1/stores') return Promise.resolve([{
+    if(path==='/stores') return Promise.resolve([{
       id:'store-1',orgId:'org-1',ownerName:'Owner',name:'Main store',loginCode:'main-store',status:'active',passwordConfigured:true,
       assignments:[{id:'assignment-1',brand:{id:'brand-1',name:'Il Mio'},status:'active',unpublishedChanges:false}]
     },{

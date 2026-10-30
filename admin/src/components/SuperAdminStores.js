@@ -10,13 +10,7 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
 
   const loadStores = async () => {
     setError('');
-    const groups = await Promise.all(
-      organizations.map(async owner => {
-        const ownedStores = await platformService.get(`/orgs/${owner.id}/stores`);
-        return ownedStores.map(store => ({ ...store, ownerName: owner.name }));
-      })
-    );
-    const nextStores = groups.flat().sort((a, b) => a.name.localeCompare(b.name));
+    const nextStores = await platformService.get('/stores');
     setStores(nextStores);
     return nextStores;
   };
@@ -24,15 +18,10 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
   useEffect(() => {
     let active = true;
     setLoading(true);
-    Promise.all(
-      organizations.map(async owner => {
-        const ownedStores = await platformService.get(`/orgs/${owner.id}/stores`);
-        return ownedStores.map(store => ({ ...store, ownerName: owner.name }));
-      })
-    )
-      .then(groups => {
+    platformService.get('/stores')
+      .then(nextStores => {
         if (active) {
-          setStores(groups.flat().sort((a, b) => a.name.localeCompare(b.name)));
+          setStores(nextStores);
           setError('');
         }
       })

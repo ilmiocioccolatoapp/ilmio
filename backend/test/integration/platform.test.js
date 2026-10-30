@@ -47,6 +47,10 @@ test('platform provisioning is invite-only and brand operations are role scoped'
  assert.equal(storeCredentials.status,200);
  assert.equal(storeCredentials.body.data.find(store=>store.id==='downtown').passwordConfigured,true);
  assert.equal(Object.hasOwn(storeCredentials.body.data[0],'passwordHash'),false);
+ const platformStores=await ok('/admin/stores');
+ assert.equal(platformStores.some(store=>store.name==='downtown'&&store.ownerName==='org-a'),true);
+ assert.equal(Object.hasOwn(platformStores[0],'passwordHash'),false);
+ assert.equal((await call('/admin/stores',{actor:'ownerA'})).status,403);
  const orgBrand=(await call('/admin/brands',{actor:'ownerA',method:'POST',body:{orgId:'org-a',name:'Forbidden Brand',slug:'forbidden'}}));assert.equal(orgBrand.status,403);
  const created=await ok('/admin/brands',{method:'POST',body:{orgId:'org-a',name:'Provisioned Brand',slug:'provisioned'}});assert.equal(created.slug,'provisioned');
  assert.equal((await call('/admin/brands/brand-a/categories',{actor:'ownerA'})).status,404);
