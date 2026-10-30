@@ -39,6 +39,8 @@ Run every migration on a staging database first. The repository’s `npm run tes
 
 **Current release gate:** Vercel Preview is currently assigned the same database and Supabase Auth environment values as Production. Do not smoke-test the Preview API, send test invites, or run account/bootstrap scripts there. First replace Preview values with isolated staging Postgres and Supabase Auth credentials for both Vercel projects. The existing Supabase projects contain live data and are not disposable staging targets.
 
+**Il Mio v4.2 no-extra-project path:** the release targets only the existing `Ilmio-app` Supabase project. The current Free organization already has two active projects; it has no third Free-project slot, and database branching requires Pro. The current plan is to rehearse against a protected local restore of `Ilmio-app`, then migrate the same production project after backup and restore verification. Do not use the other Supabase project or Vercel Preview as staging. See [Il Mio go-live checklist](docs/ILMIO_GO_LIVE.md).
+
 The current Supabase security advisor also reports that leaked-password protection is disabled and that `public.rls_auto_enable()` is an executable `SECURITY DEFINER` function. Migration `202610300004_revoke_public_rls_trigger` removes direct `PUBLIC`, `anon`, and `authenticated` execute grants from that event-trigger helper when it exists, while preserving the trigger. Enable leaked-password protection in Supabase Auth settings before sending real setup emails. Review the remaining advisor findings as part of the release check.
 
 1. Use a staging database that matches the existing single-brand schema. Keep a pre-migration backup with `DATABASE_URL` set to staging:
