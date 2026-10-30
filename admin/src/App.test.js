@@ -195,48 +195,71 @@ test('Platform Admin can create brands and invite brand administrators from the 
   expect(element.textContent).toContain('Invitation email sent');
 });
 
-test('Platform Admin can find tablet credentials from Stores & owners', async () => {
+test('Platform Admin lands on a simple store directory and creates a store from the top right', async () => {
   const platformUser={...membership,isPlatformAdmin:true,orgs:[{id:'org-1',name:'Owner'}],id:'admin-1',email:'platform@example.test'};
   authService.getCurrentUser.mockResolvedValue(platformUser);
-  platformService.get.mockImplementation(path => Promise.resolve(path.endsWith('/stores') ? [{
-    id:'store-1',name:'Main store',loginCode:'ilmio-main',status:'active',passwordConfigured:true,assignments:[]
-  }] : []));
+  const createdStore={
+    id:'store-new',orgId:'org-1',name:'New branch',ownerName:'Owner',loginCode:'new-branch',
+    status:'active',passwordConfigured:true,
+    assignments:[{id:'assignment-new',brand:{id:'brand-1',name:'Il Mio',orgId:'org-1'},status:'active'}]
+  };
+  let storeFetches=0;
+  platformService.get.mockImplementation(path => {
+    if(path==='/orgs/org-1/stores') return Promise.resolve(++storeFetches===1?[]:[createdStore]);
+    return Promise.resolve([]);
+  });
+  platformService.post.mockImplementation(path => Promise.resolve(path.endsWith('/stores')?createdStore:{id:'assignment-new'}));
   await flush(() => emit('TOKEN_REFRESHED',{...session,access_token:'platform-store-token'}));
-  await flush(() => button('Stores & owners').click());
-  expect(element.textContent).toContain('Stores & tablet access');
-  await flush(() => element.querySelector('.branch-card').click());
-  expect(element.textContent).toContain('Tablet Store ID: ilmio-main');
-  expect(element.textContent).toContain('Store ID: ilmio-main');
-  expect(element.textContent).toContain('Set — hidden for security');
-  expect(button('Show login QR')).toBeDefined();
-  expect(button('Reset tablet password')).toBeDefined();
-  await flush(() => button('Reset tablet password').click());
+  expect(button('Stores')).toBeDefined();
+  expect(button('Brands')).toBeDefined();
+  expect(button('+ Create store')).toBeDefined();
+  expect(element.textContent).toContain('Select a store to manage its menu and tablet login.');
+  await flush(() => button('+ Create store').click());
+  expect(element.querySelector('[role="dialog"]')).not.toBeNull();
+  expect(element.textContent).toContain('Tablet Store ID');
   expect(element.querySelector('input[type="password"]').minLength).toBe(6);
+  const inputs=[...element.querySelectorAll('[role="dialog"] input')];
+  const setValue=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
+  const values=['New branch','new-branch','new-branch-id','tablet-pass-1'];
+  for(let index=0;index<inputs.length;index++){
+    await flush(()=>{setValue.call(inputs[index],values[index]);inputs[index].dispatchEvent(new Event('input',{bubbles:true}));});
+  }
+  await flush(()=>element.querySelector('[role="dialog"] form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
+  expect(platformService.post).toHaveBeenCalledWith('/orgs/org-1/stores',expect.objectContaining({name:'New branch',loginCode:'new-branch-id'}));
+  expect(platformService.post).toHaveBeenCalledWith('/orgs/org-1/brand-assignments',{storeId:'store-new',brandId:'brand-1'});
+  expect(element.textContent).toContain('New branch');
+  expect(element.textContent).toContain('Tablet login');
 });
 
-test('opening a store card scopes the brand menu editor to that branch', async () => {
+test('opening a store shows menu, categories, and tablet login for that branch', async () => {
   const platformUser={...membership,isPlatformAdmin:true,orgs:[{id:'org-1',name:'Owner'}],id:'admin-1',email:'platform@example.test'};
   authService.getCurrentUser.mockResolvedValue(platformUser);
   platformService.get.mockImplementation(path => {
     if(path==='/orgs/org-1/stores') return Promise.resolve([{
-      id:'store-1',orgId:'org-1',name:'Main branch',loginCode:'main-branch',status:'active',passwordConfigured:true,
+      id:'store-1',orgId:'org-1',ownerName:'Owner',name:'Main branch',loginCode:'main-branch',status:'active',passwordConfigured:true,
       assignments:[{id:'assignment-1',brand:{id:'brand-1',name:'Il Mio'},status:'active',unpublishedChanges:false}]
     }]);
     if(path==='/brands/brand-1/stores') return Promise.resolve([{
-      id:'assignment-1',storeId:'store-1',store:{id:'store-1',name:'Main branch'},status:'active',overrides:[]
+      id:'assignment-1',storeId:'store-1',brandId:'brand-1',store:{id:'store-1',name:'Main branch'},status:'active',overrides:[]
     }]);
     return Promise.resolve([]);
   });
   await flush(() => emit('TOKEN_REFRESHED',{...session,access_token:'platform-branch-menu-token'}));
-  await flush(() => button('Stores & owners').click());
   await flush(() => element.querySelector('.branch-card').click());
-  expect(element.textContent).toContain('Menus at this branch');
-  await flush(() => button('Manage branch menu').click());
-  expect(element.textContent).toContain('Main branch — Il Mio menu');
+  expect(element.textContent).toContain('Main branch');
+  expect(button('Menu')).toBeDefined();
+  expect(button('Categories')).toBeDefined();
+  expect(button('Tablet login')).toBeDefined();
+  await flush(() => button('Store availability & publishing').click());
   expect(element.textContent).toContain('Publish to this store');
   expect(button('← Back to branch')).toBeDefined();
   await flush(() => button('← Back to branch').click());
-  expect(element.textContent).toContain('Tablet Store ID: main-branch');
+  await flush(() => button('Tablet login').click());
+  expect(element.textContent).toContain('Tablet login details');
+  expect(element.textContent).toContain('main-branch');
+  expect(element.textContent).toContain('Set — hidden for security');
+  expect(button('Show tablet login QR')).toBeDefined();
+  expect(element.querySelector('input[type="password"]').minLength).toBe(6);
   await flush(() => button('← All stores').click());
   expect(element.querySelector('.branch-card')).not.toBeNull();
 });
