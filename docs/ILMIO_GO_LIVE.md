@@ -12,10 +12,14 @@ This runbook records the Il Mio v4.2 production rollout: the multi-store schema,
 - [x] The signed version `2.1.0+9` APK candidate is at `mobile/build/app/outputs/flutter-apk/app-release.apk`; it points to the production API, which is now live.
 - [x] The production API and admin are deployed at `https://ilmio-app.vercel.app` and `https://ilmio-admin.vercel.app`. `/healthz` and the admin login page return successfully; unauthenticated `/api/admin/me` correctly returns 401.
 - [x] All four production migrations are applied to the existing `Ilmio-app` project, and catalog IDs and counts were verified after migration.
+- [x] CBW now has its own owner organization and brand in the same project, separate from Il Mio Cioccolato. Its catalog is empty and it has no store assignment or brand administrator yet.
+- [x] The admin workspace has one Brand selector across owners; changing it switches the active catalog. The Owner selector is shown only for store and owner management.
 - [x] Supabase accepted the Platform Admin invitation request for `roobiinpandey@gmail.com`; a follow-up read-only check confirms the Auth email and active Platform Admin profile. No password was set or logged.
 - [ ] The Super Admin should sign in at the admin page using the password chosen during setup. If setup is unfinished or the invite link expired, use **Forgot password** to receive a fresh password setup link.
 - [ ] The Il Mio Brand Admin invitation and initial tablet Store ID password are still pending.
-- [ ] Vercel Preview still points to production services. Do not use Preview for sign-in, invites, or tablet testing until its environment is isolated. No staging Supabase project, branch, or plan upgrade was created.
+- [ ] CBW still needs its menu items, physical store assignment, and brand administrator account.
+- [x] Removed production database, Auth, and Cloudinary settings from Vercel Preview. Production settings remain intact; Preview has no staging services and must not be used until configured with isolated values.
+- [x] No staging Supabase project, branch, or paid plan was created.
 
 Supabase leaked-password protection is not available on the current Free plan. The password setup page requires at least 20 characters; use a password manager to generate and store a unique password. No paid upgrade was made.
 
@@ -23,7 +27,7 @@ Supabase leaked-password protection is not available on the current Free plan. T
 
 1. Use only the existing Supabase `Ilmio-app` project and the existing `ilmio-app` API and `ilmio-admin` Vercel projects. No additional project, database branch, or paid plan was created.
 2. The production database dump was restored to disposable local PostgreSQL for migration and restore rehearsals. The integration suite passed 8/8 before the production migration. Keep future dumps and connection strings outside the repository.
-3. Vercel Preview still shares production services. Do not use Preview for admin sign-in, invite scripts, migration commands, or tablet API tests.
+3. Production credentials were removed from Vercel Preview. Preview is intentionally not configured for sign-in, invite scripts, migrations, or tablet API tests until isolated staging values are available.
 4. Production API values are configured in the backend project. Keep `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `STORE_JWT_SECRET` server-side; never put them in the admin frontend or APK.
 5. Supabase Auth allows the production password-setup redirect. The invitation request was accepted. The built-in email service is in use; no SMTP provider or paid add-on was configured.
 6. Leaked-password protection requires Supabase Pro or above. The current setup stays on Free, so the admin password page enforces a 20-character minimum and recommends a unique password manager-generated password.

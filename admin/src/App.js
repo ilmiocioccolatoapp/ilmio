@@ -30,9 +30,9 @@ function App(){
  },[accessToken,userId]);
  useEffect(()=>{setShowForm(false);setEditingProduct(null);setActiveTab('dashboard');setOrgId('');setBrandId('');setStoreId('');},[userId]);
  const organizations=adminUser?.orgs||[];
- const selectedOrg=organizations.find(o=>o.id===orgId)||organizations[0];
- const brands=(adminUser?.brands||[]).filter(b=>!selectedOrg||b.orgId===selectedOrg.id);
+ const brands=[...(adminUser?.brands||[])].sort((a,b)=>a.createdAt&&b.createdAt?a.createdAt.localeCompare(b.createdAt):0);
  const selectedBrand=brands.find(b=>b.id===brandId)||brands[0];
+ const selectedOrg=organizations.find(o=>o.id===orgId)||organizations.find(o=>o.id===selectedBrand?.orgId)||organizations[0];
  const selectedBrandId=selectedBrand?.id;
  const canCatalog=Boolean(adminUser?.isPlatformAdmin||adminUser?.brandMemberships?.some(m=>m.brandId===selectedBrandId&&m.role==='BRAND_ADMIN'));
  const canManage=Boolean(adminUser&&(adminUser.isPlatformAdmin||adminUser.orgMemberships?.some(m=>m.orgId===selectedOrg?.id&&m.role==='ORG_ADMIN')));
@@ -76,8 +76,8 @@ function App(){
    <nav aria-label="Workspace"><ul className="sidebar-menu">{tabs.map(([id,label])=><li key={id}><button className={visibleTab===id?'active':''} onClick={()=>navigate(id)}>{label}</button></li>)}</ul></nav>
   </aside><div className="workspace"><header className="app-header"><div className="header-inner">
    <div className="scope-selectors">
-    <label>Owner<select aria-label="Owner organization" value={selectedOrg?.id||''} onChange={e=>{setOrgId(e.target.value);setBrandId('');setStoreId('');}}>{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
-    <label>Brand<select aria-label="Brand" value={selectedBrand?.id||''} onChange={e=>{setBrandId(e.target.value);setStoreId('');}}>{brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+    {visibleTab==='management'&&<label>Owner<select aria-label="Owner organization" value={selectedOrg?.id||''} onChange={e=>{const nextOrgId=e.target.value;setOrgId(nextOrgId);setBrandId(brands.find(b=>b.orgId===nextOrgId)?.id||'');setStoreId('');}}>{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}
+    {visibleTab!=='management'&&visibleTab!=='brands'&&selectedBrand&&<label>Brand<select aria-label="Brand" value={selectedBrand.id} onChange={e=>{const nextBrand=brands.find(b=>b.id===e.target.value);setBrandId(e.target.value);setOrgId(nextBrand?.orgId||'');setStoreId('');}}>{brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>}
    </div><div className="admin-actions"><span className="admin-user">{adminUser.email}</span><button className="btn btn-ghost btn-sm" onClick={signOut}>Sign out</button></div>
   </div></header><main className="main-content">{content}</main></div>
   {showForm&&selectedBrand&&<ProductForm key={scopeKey} product={editingProduct} onSuccess={close} onCancel={close}/>}</div>
