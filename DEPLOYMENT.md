@@ -37,7 +37,7 @@ Keep the service-role key and database connection string in the API project only
 
 Run every migration on a staging database first. The repository’s `npm run test:integration` uses a disposable local PostgreSQL cluster and checks the migration chain; it does not access a staging or production database.
 
-1. Take a database backup with `DATABASE_URL` set to the staging connection:
+1. Use a staging database that matches the existing single-brand schema. Keep a pre-migration backup with `DATABASE_URL` set to staging:
 
    ```sh
    cd backend
@@ -45,21 +45,24 @@ Run every migration on a staging database first. The repository’s `npm run tes
    npm run db:backup -- /secure/path/staging-before-release.dump
    ```
 
-2. Apply the reviewed migrations to staging:
+2. Check `npx prisma migrate status`. If this is an existing database with no migration history, compare its schema with `202610300001_baseline/migration.sql`; only when they match, record that baseline with `npm run prisma:baseline`. Then apply the reviewed migrations:
 
    ```sh
    npm run prisma:deploy
    ```
 
-3. Smoke-test admin sign-in, tablet login/menu reads, publishing, and invitation email delivery on staging. Rehearse a restore to a separate empty database:
+3. Deploy the commit to a staging/preview API and admin environment backed by staging Postgres and staging Supabase Auth. Smoke-test admin sign-in, invitation/password setup, tablet login/menu reads, and publishing.
+
+4. Back up the **post-migration** staging database, then rehearse restoring that backup to a separate empty database. The restore checker expects the post-migration `MenuVersion` table:
 
    ```sh
-   RESTORE_DATABASE_URL='postgresql://…/ilmio_restore_staging' npm run db:restore-check -- /secure/path/staging-before-release.dump
+   npm run db:backup -- /secure/path/staging-after-release.dump
+   RESTORE_DATABASE_URL='postgresql://…/ilmio_restore_staging' npm run db:restore-check -- /secure/path/staging-after-release.dump
    ```
 
-4. Back up production, deploy the same migration commit using `npm run prisma:deploy` with production `DATABASE_URL` from a controlled operator environment, then deploy the API and admin projects. Do not put `prisma migrate deploy` in `vercel.json`, a build command, or startup code. Never use `prisma db push` in production.
+5. After staging and restore checks pass, back up production, verify/adopt the production baseline if needed, and apply the same migration commit using `npm run prisma:deploy` with production `DATABASE_URL` from a controlled operator environment. Then deploy the API and admin projects. Do not put `prisma migrate deploy` in `vercel.json`, a build command, or startup code. Never use `prisma db push` in production.
 
-5. Verify `/healthz`, `/api/auth/store/login`, `/api/menu`, and `/api/admin/me`. The first healthy request to the new API stamps the legacy monitoring start time; confirm it appears in the adoption report.
+6. Verify `/healthz`, `/api/auth/store/login`, `/api/menu`, and `/api/admin/me`. The first healthy request to the new API stamps the legacy monitoring start time; confirm it appears in the adoption report.
 
 The Vercel project, production database, SMTP configuration, and staging credentials are external to this repository. The runbook is ready, but the staging rehearsal and production bootstrap must be completed by an operator with those credentials.
 
