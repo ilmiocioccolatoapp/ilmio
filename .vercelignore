@@ -1,0 +1,6 @@
+mobile/
+admin/build/
+META-INF/
+scripts/skylos
+supabase/
+*.apk

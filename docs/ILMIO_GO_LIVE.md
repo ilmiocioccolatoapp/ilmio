@@ -1,6 +1,6 @@
 # Il Mio v4.2 Go-Live Checklist
 
-This runbook covers the first migration from the single-brand Il Mio schema to the multi-store platform, the two administrator roles, and the Store ID login used by tablets.
+This runbook records the Il Mio v4.2 production rollout: the multi-store schema, administrator roles, and Store ID login used by tablets. The rollout uses the existing `Ilmio-app` Supabase project and existing Vercel projects only.
 
 ## Release readiness
 
@@ -9,24 +9,28 @@ This runbook covers the first migration from the single-brand Il Mio schema to t
 - [x] The live catalog currently has 8 categories and 19 products; all product prices pass the migration format check, and products have valid legacy category references.
 - [x] The Flutter flow uses Store ID and password, skips brand choice for one assigned menu, shows a selector for multiple menus, stores tokens with `flutter_secure_storage`, and expires offline access after 72 hours.
 - [x] A release migration removes direct Data API execute access from the existing Supabase `public.rls_auto_enable()` SECURITY DEFINER helper, if present, without removing its event trigger.
-- [x] A signed version `2.1.0+9` APK candidate was compiled at `mobile/build/app/outputs/flutter-apk/app-release.apk`. This first artifact uses the current production API URL and cannot complete the v4.2 login flow until the API migration/deployment is live; rebuild it after the `Ilmio-app` API is updated.
-- [x] Release scope is limited to the existing Supabase `Ilmio-app` project. The other project is out of scope and will not be modified.
-- [ ] Vercel Preview still points to production services. No staging project or branch was created: the Free organization already has two active projects; a third project is not available under its Free quota, and branching requires Pro. No plan upgrade or extra project was created.
-- [ ] Production migration, account setup, and store password initialization have not been run.
+- [x] The signed version `2.1.0+9` APK candidate is at `mobile/build/app/outputs/flutter-apk/app-release.apk`; it points to the production API, which is now live.
+- [x] The production API and admin are deployed at `https://ilmio-app.vercel.app` and `https://ilmio-admin.vercel.app`. `/healthz` and the admin login page return successfully; unauthenticated `/api/admin/me` correctly returns 401.
+- [x] All four production migrations are applied to the existing `Ilmio-app` project, and catalog IDs and counts were verified after migration.
+- [x] Supabase accepted the Platform Admin invitation request for `roobiinpandey@gmail.com`; a follow-up read-only check confirms the Auth email and active Platform Admin profile. No password was set or logged.
+- [ ] The Super Admin should sign in at the admin page using the password chosen during setup. If setup is unfinished or the invite link expired, use **Forgot password** to receive a fresh password setup link.
+- [ ] The Il Mio Brand Admin invitation and initial tablet Store ID password are still pending.
+- [ ] Vercel Preview still points to production services. Do not use Preview for sign-in, invites, or tablet testing until its environment is isolated. No staging Supabase project, branch, or plan upgrade was created.
 
-## 1. Scope and no-extra-project rehearsal
+Supabase leaked-password protection is not available on the current Free plan. The password setup page requires at least 20 characters; use a password manager to generate and store a unique password. No paid upgrade was made.
 
-1. Use only the existing Supabase `Ilmio-app` project for this release. Keep the organization on its current Free plan; do not create or modify the other Supabase project.
-2. The Free organization currently has two active projects, its Free-plan limit. A new standalone project was quoted at $0/month, but there is no available third Free-project slot. Free projects can pause after a week of low activity. See [Supabase billing](https://supabase.com/docs/guides/platform/billing-on-supabase) and [pricing](https://supabase.com/pricing).
-3. Branch creation was rejected because the current plan does not support branching. The branch quote was $0.01344/hour, separate from a Pro subscription; the [Pro plan starts at $25/month](https://supabase.com/pricing). No upgrade was made.
-4. For a no-extra-project rehearsal, take a protected database dump from `Ilmio-app`, restore it to a disposable local PostgreSQL instance, then run the migration and restore checks against that copy. Keep all connection strings and dumps outside the repository. Continue running `npm run test:integration` as well.
-5. Do not smoke-test Vercel Preview while its environment variables point to production. The APK cannot use an SSO-protected preview as its API endpoint.
-6. Before the production release, confirm a fresh `Ilmio-app` backup can be restored and passes the migration rehearsal. Configure `STORE_JWT_SECRET`, `ADMIN_ORIGINS`, `ADMIN_INVITE_REDIRECT_URL`, and the server-only `SUPABASE_SERVICE_ROLE_KEY` in the correct Vercel production projects.
-7. Configure Supabase Auth email delivery and add the production password-setup redirect URL to its allowed redirect URLs. Enable leaked-password protection before sending setup emails; the current production project advisor reports that it is disabled.
+## 1. Existing Il Mio production setup
 
-## 2. Back up and rehearse the Il Mio database migration
+1. Use only the existing Supabase `Ilmio-app` project and the existing `ilmio-app` API and `ilmio-admin` Vercel projects. No additional project, database branch, or paid plan was created.
+2. The production database dump was restored to disposable local PostgreSQL for migration and restore rehearsals. The integration suite passed 8/8 before the production migration. Keep future dumps and connection strings outside the repository.
+3. Vercel Preview still shares production services. Do not use Preview for admin sign-in, invite scripts, migration commands, or tablet API tests.
+4. Production API values are configured in the backend project. Keep `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `STORE_JWT_SECRET` server-side; never put them in the admin frontend or APK.
+5. Supabase Auth allows the production password-setup redirect. The invitation request was accepted. The built-in email service is in use; no SMTP provider or paid add-on was configured.
+6. Leaked-password protection requires Supabase Pro or above. The current setup stays on Free, so the admin password page enforces a 20-character minimum and recommends a unique password manager-generated password.
 
-Use a protected operator shell or secret manager for connection strings. Do not put secrets in this repository, command history, or the APK. The source database is the existing `Ilmio-app` project; restore its dump to a disposable local PostgreSQL instance for rehearsal.
+## 2. Production migration and verification (completed)
+
+The production migration was rehearsed against a disposable local PostgreSQL restore of the existing `Ilmio-app` database. A protected production backup was taken before migration. Do not put secrets or dumps in this repository, command history, or the APK.
 
 ```sh
 cd backend
@@ -44,22 +48,23 @@ npm run prisma:deploy
 
 The second migration backfills the legacy catalog into the Il Mio organization, brand, store, and StoreBrand assignment in one transaction. It preserves the existing Category and Product IDs and fields, converts supported AED/EUR price strings into exact numeric amounts, creates the first published menu snapshot, and pins legacy menu routes to the Il Mio assignment. It stops before the backfill if prices are malformed, unsupported, or mix currencies. The fourth migration also removes public execute grants from the existing Supabase RLS event-trigger helper if that helper exists.
 
-After migration, verify:
+The baseline was compared with the live legacy schema and recorded, then migrations `202610300002_multi_owner_platform`, `202610300003_legacy_route_monitoring`, and `202610300004_revoke_public_rls_trigger` were applied. Post-migration verification confirmed:
 
 - `Category` and `Product` row counts and original IDs match the pre-migration backup.
 - Every category and product belongs to `legacy-ilmio-brand`, and every product still references its original category.
 - `legacy-ilmio-store` has login code `ilmio-main`; `legacy-ilmio-main` links it to the Il Mio brand and has a current published menu snapshot.
-- Both legacy routes return the preserved catalog shape and are recorded in `LegacyRouteHit` during the integration test.
-- Store ID login, menu sync, publishing, and ownership boundaries pass the local integration tests. Real Supabase Auth and tablet sign-in are verified after the production API deployment.
+- Both legacy routes preserve the catalog response and are recorded in `LegacyRouteHit` during the integration test.
+- Store ID login, menu sync, publishing, and ownership boundaries pass the local integration tests.
+- The live RLS helper event trigger remains installed, and direct public execute access to its SECURITY DEFINER helper is revoked.
 
-On the local restored copy, mark the baseline only after verifying it matches, apply the migrations, and test the migrated data. Back up the migrated local copy and rehearse restoring it to a separate empty local database before applying anything to production. The checker expects the post-migration `MenuVersion` table:
+The migrated local copy was also backed up and restored to a separate empty local database. This restore check expects the post-migration `MenuVersion` table:
 
 ```sh
 npm run db:backup -- /secure/path/ilmio-after.dump
 RESTORE_DATABASE_URL='postgresql://…/ilmio_restore_local' npm run db:restore-check -- /secure/path/ilmio-after.dump
 ```
 
-## 3. Deploy and bootstrap the Platform Admin on Ilmio-app
+## 3. Finish Super Admin sign-in
 
 Configure the backend API environment in Vercel. `SUPABASE_SERVICE_ROLE_KEY` and `DATABASE_URL` belong only in the backend project; never use them in the admin frontend or mobile app.
 
@@ -76,20 +81,18 @@ Required API values:
 - `TRUST_PROXY_HOPS`
 - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` when uploads are enabled
 
-Set `BOOTSTRAP_PLATFORM_ADMIN_EMAIL` to the intended Super Admin’s confirmed Supabase Auth email. For the intended account already specified in this project, use `roobiinpandey@gmail.com`. Set the production value only during the production release window. Do not configure Preview with production credentials or use it to send test invites.
+Production currently has `BOOTSTRAP_PLATFORM_ADMIN_EMAIL=roobiinpandey@gmail.com`. Keep this value until the account signs in successfully. Do not use Preview with production credentials or send test invites from Preview.
 
-If the account does not exist in the selected Auth project, first dry-run and then send its setup email from the backend with that project's secrets loaded in the operator shell:
+The dry run confirmed that the Auth user and profile did not exist. The invite command was run once against the existing `Ilmio-app` project, and Supabase accepted it. A follow-up read-only check confirms the Auth email is confirmed and an active Platform Admin profile exists. No password was created or logged. Do not rerun the invite script. The recipient should:
 
-```sh
-npm run admin:invite-platform
-npm run admin:invite-platform -- --send-setup
-```
+- Sign in at `https://ilmio-admin.vercel.app/login` with `roobiinpandey@gmail.com` and the password chosen during setup.
+- If the password was not set or the invite link expired, choose **Forgot password** on the login page and follow the email link to set a unique password of at least 20 characters.
 
-Deploy the API and admin commit to `Ilmio-app` production only after the local production-copy migration and restore rehearsals pass. The confirmed user signs in; the first matching login creates the Platform Admin profile. Verify `/api/admin/me` reports `isPlatformAdmin: true`, then remove `BOOTSTRAP_PLATFORM_ADMIN_EMAIL` from Production and redeploy.
+After the user confirms sign-in, verify `/api/admin/me` reports `isPlatformAdmin: true`, remove `BOOTSTRAP_PLATFORM_ADMIN_EMAIL` from Production, and redeploy the API.
 
 ## 4. Invite the Il Mio Brand Admin
 
-Set `ILMIO_BRAND_ADMIN_EMAIL` to the existing Il Mio administrator email and use the `Ilmio-app` Supabase service-role key, publishable key, and database connection. Dry-run against the local restored rehearsal database first. Apply the script to production only after the database migration and API deployment; it creates/reuses the profile and `BRAND_ADMIN` membership and sends the setup or recovery email:
+After Super Admin access is confirmed, set `ILMIO_BRAND_ADMIN_EMAIL` to the existing Il Mio administrator email and use the `Ilmio-app` Supabase service-role key, publishable key, and database connection. The script creates/reuses the profile and `BRAND_ADMIN` membership and sends the setup or recovery email:
 
 ```sh
 npm run admin:bootstrap-ilmio
@@ -111,7 +114,7 @@ The tablet signs in with Store ID `ilmio-main` and that password. The password i
 
 ## 6. Build and test the APK
 
-Rebuild the signed APK after the `Ilmio-app` production API has received the v4.2 deployment. The current candidate uses the default production endpoint and cannot sign in before that deployment:
+The production API is live. The current signed candidate already uses its production endpoint; rebuild only if a newer Flutter change needs to be included:
 
 ```sh
 cd ../mobile
@@ -129,15 +132,11 @@ The release APK is written to `mobile/build/app/outputs/flutter-apk/app-release.
 - Offline menu access works for up to 72 hours, then asks the device to reconnect.
 - The legacy public routes remain pinned to Il Mio during the 30-day adoption window.
 
-## 7. Ilmio-app production release
+## 7. Remaining production rollout
 
-Only after the local production-copy migration rehearsal and separate restore rehearsal pass:
-
-1. Take and verify a fresh production backup outside the workspace.
-2. Confirm the production baseline status. The currently observed production schema matches the checked-in legacy baseline, including the named unique constraint on `Category.id`; still verify migration history immediately before release.
-3. Apply the reviewed baseline adoption, if needed, and migrations `202610300002_multi_owner_platform`, `202610300003_legacy_route_monitoring`, and `202610300004_revoke_public_rls_trigger` with `npm run prisma:deploy` from a controlled operator shell. Never run migrations as part of a Vercel build or startup.
-4. Configure production API environment values and deploy the API/admin commit. Keep the legacy routes enabled and monitor the 30-day adoption report.
-5. Set up the Platform Admin, invite the Il Mio Brand Admin, initialize the store password, and verify `/healthz`, `/api/admin/me`, `/api/auth/store/login`, and `/api/menu`.
-6. Build the production APK against `https://ilmio-app.vercel.app/api` after the API is live, install it, and validate the flows above with the real Il Mio store credentials.
+1. Complete the Super Admin sign-in and remove the one-time `BOOTSTRAP_PLATFORM_ADMIN_EMAIL` setting afterward.
+2. Invite the Il Mio Brand Admin and initialize the store password as described above.
+3. Confirm `/healthz`, `/api/admin/me`, `/api/auth/store/login`, and `/api/menu` against production. Test tablet login with the real Il Mio store credentials.
+4. Keep the legacy routes enabled and monitor the 30-day adoption report.
 
 Do not retire `/api/categories` or `/api/products/available` until the 30-day monitoring gate is met and every managed tablet has moved to the authenticated app.
