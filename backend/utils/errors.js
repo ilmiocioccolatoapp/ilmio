@@ -1,15 +1,23 @@
 // Never log exception messages, stacks, request objects or provider responses:
 // they can include connection strings, tokens and request payloads.
 const safeCodes = new Set([
-  'P1000', 'P1001', 'P1002', 'P1003', 'P1008', 'P1010', 'P1011', 'P1017',
-  'P2000', 'P2002', 'P2003', 'P2024', 'P2025',
+  'P1000', 'P1001', 'P1002', 'P1003', 'P1008', 'P1010', 'P1011', 'P1012', 'P1017',
+  'P2000', 'P2002', 'P2003', 'P2021', 'P2022', 'P2024', 'P2025',
   'LIMIT_PART_COUNT', 'LIMIT_FILE_SIZE', 'LIMIT_FILE_COUNT', 'LIMIT_FIELD_KEY',
   'LIMIT_FIELD_VALUE', 'LIMIT_FIELD_COUNT', 'LIMIT_UNEXPECTED_FILE',
   'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND'
 ]);
+const safeErrorNames = new Set([
+  'PrismaClientInitializationError',
+  'PrismaClientKnownRequestError',
+  'PrismaClientValidationError'
+]);
 
 function logError(operation, error) {
   const details = {};
+  if (safeErrorNames.has(error?.name)) {
+    details.name = error.name;
+  }
   if (safeCodes.has(error?.code)) {
     details.code = error.code;
   }

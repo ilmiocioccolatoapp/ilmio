@@ -113,3 +113,19 @@ test('database errors retain an allowlisted diagnostic code without connection s
     assert.equal(JSON.stringify(res.body).includes(secret), false);
   });
 });
+
+test('Prisma schema errors include only allowlisted diagnostic metadata', async () => {
+  await captureLogs(logs => {
+    logError('Health check failed', Object.assign(new Error(secret), {
+      name: 'PrismaClientKnownRequestError',
+      code: 'P2021',
+      meta: { table: secret },
+      stack: secret
+    }));
+    assert.deepEqual(logs, [['Health check failed', {
+      name: 'PrismaClientKnownRequestError',
+      code: 'P2021'
+    }]]);
+    assert.equal(JSON.stringify(logs).includes(secret), false);
+  });
+});
