@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { productService, categoryService } from '../services/api';
 import { createResource } from './resource';
 
 const CatalogContext = createContext(null);
 const idOf = item => item._id || item.dbId || item.id;
 const upsert = (items, item) => [item, ...items.filter(existing => idOf(existing) !== idOf(item))];
 
-export function CatalogProvider({ children }) {
+export function CatalogProvider({ children, services, brand }) {
+  const { productService, categoryService } = services;
   const [resources] = useState(() => ({
     products: createResource(async () => (await productService.getAllProducts()).data || []),
     categories: createResource(() => categoryService.getAllCategories())
@@ -43,7 +43,8 @@ export function CatalogProvider({ children }) {
       resources.products.update(items => upsert(items, result.data));
     },
     async toggleProduct(id) {
-      const result = await productService.toggleAvailability(id);
+      const current = resources.products.getSnapshot().data?.find(item => idOf(item) === id);
+      const result = await productService.toggleAvailability(id, !current?.available);
       resources.products.update(items => upsert(items, result.data));
     },
     async deleteProduct(id) {
@@ -59,11 +60,11 @@ export function CatalogProvider({ children }) {
     },
     async deleteCategory(id) {
       await categoryService.deleteCategory(id);
-      resources.categories.update(items => items.filter(item => item.id !== id));
+      resources.categories.update(items => items.filter(item => idOf(item) !== id));
     },
     refreshProducts: () => resources.products.refresh(true),
     refreshCategories: () => resources.categories.refresh(true)
-  }), [resources]);
+  }), [resources, productService, categoryService]);
 
   const value = useMemo(() => {
     const categories = [...(categoryState.data || [])].sort((a, b) => a.order - b.order);
@@ -77,6 +78,7 @@ export function CatalogProvider({ children }) {
     }, {});
     return {
       products,
+      brand,
       categories: categories.map(category => productState.data === null ? category : {
         ...category, count: counts[category.id] || 0
       }),
@@ -86,7 +88,7 @@ export function CatalogProvider({ children }) {
       categoriesError: categoryState.error,
       ...actions
     };
-  }, [productState, categoryState, actions]);
+  }, [productState, categoryState, actions, brand]);
 
   return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>;
 }

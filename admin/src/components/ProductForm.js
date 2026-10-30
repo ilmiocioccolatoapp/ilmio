@@ -3,18 +3,16 @@ import { useCatalog } from '../data/CatalogContext';
 import { CloseIcon } from './Icons';
 import { DIRHAM_SYMBOL } from '../utils/price';
 
-const getPriceCurrency = (price) => price.trim().startsWith('€') ? '€' : 'AED';
+const getPriceCurrency = (price) => price.trim().startsWith('€') ? '€' : (price.trim().match(/^[A-Z]{3}/)?.[0] || 'AED');
 
-const getPriceAmount = (price) => price.trim().replace(/^(AED|€|\u20C3)\s*/, '');
+const getPriceAmount = (price) => price.trim().replace(/^([A-Z]{3}|€|\u20C3)\s*/, '');
 
 const formatPrice = (price) => {
   const currency = getPriceCurrency(price);
   const amount = getPriceAmount(price);
   const [whole, fraction = ''] = amount.split('.');
   const formattedAmount = `${whole}.${fraction.padEnd(2, '0')}`;
-  return currency === 'AED'
-    ? `AED ${formattedAmount}`
-    : `€${formattedAmount}`;
+  return currency === '€' ? `€${formattedAmount}` : `${currency} ${formattedAmount}`;
 };
 
 const ProductForm = ({ product, onSuccess, onCancel }) => {
@@ -30,7 +28,7 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
   const [imagePreview, setImagePreview] = useState('');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const { categories, saveProduct } = useCatalog();
+  const { categories, saveProduct, brand } = useCatalog();
 
   const getErrorMessage = (error) => {
     if (!error) return 'Failed to save product';
@@ -53,6 +51,8 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
       setImagePreview(product.image);
     }
   }, [product]);
+
+  useEffect(() => { if (!product && brand?.currency) setFormData(previous => ({...previous, price: (brand.currency === 'EUR' ? '€' : brand.currency + ' ') + '0.00'})); }, [brand?.currency, product]);
 
   const defaultCategory = categories[0]?.id;
   useEffect(() => {
@@ -97,7 +97,7 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
     const amount = e.target.value;
     setFormData(prev => ({
       ...prev,
-      price: currency === 'AED' ? `AED ${amount}` : `€${amount}`
+      price: currency === '€' ? `€${amount}` : `${currency} ${amount}`
     }));
     if (errors.price) setErrors(prev => ({ ...prev, price: '' }));
   };
@@ -232,7 +232,7 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
           <label htmlFor="price">Price *</label>
           <div className={`price-input${errors.price ? ' error' : ''}`}>
             <span aria-label={getPriceCurrency(formData.price) === 'AED' ? 'UAE dirhams' : 'Euros'}>
-              {getPriceCurrency(formData.price) === 'AED' ? DIRHAM_SYMBOL : '€'}
+              {getPriceCurrency(formData.price) === 'AED' ? DIRHAM_SYMBOL : getPriceCurrency(formData.price)}
             </span>
             <input
               type="text"
@@ -265,7 +265,7 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
             Cancel
           </button>
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Recording...' : (product ? 'Save Changes' : 'Publish Product')}
+            {loading ? 'Recording...' : (product ? 'Save draft changes' : 'Save product draft')}
           </button>
         </div>
       </form>

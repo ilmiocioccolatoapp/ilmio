@@ -11,7 +11,9 @@ import '../widgets/product_card.dart';
 import '../widgets/product_details_page.dart';
 
 class GalleryScreen extends StatefulWidget {
-  const GalleryScreen({super.key, this.apiService});
+  const GalleryScreen({super.key, this.apiService, this.brandName = 'Menu'});
+
+  final String brandName;
 
   final ApiService? apiService;
 
@@ -248,8 +250,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
                                           _onUserInteraction();
                                           await _loadProducts();
                                         },
-                                        color: const Color(
-                                            AppConstants.primaryColorValue),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
                                         child: _buildMainContent(isTablet),
                                       ),
                                     ),
@@ -446,9 +449,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
             color: const Color(
               AppConstants.darkBrownValue,
             ).withValues(alpha: 0.12),
-            child: const Center(
+            child: Center(
               child: SpinKitFoldingCube(
-                color: Color(AppConstants.primaryColorValue),
+                color: Theme.of(context).colorScheme.primary,
                 size: 50.0,
               ),
             ),
@@ -500,6 +503,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   letterSpacing: 0.3,
                 ),
               ),
+              if (!product.available) const Chip(label: Text('Sold out')),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -559,13 +563,13 @@ class _GalleryScreenState extends State<GalleryScreen> {
         left: isTablet ? 16 : 8,
         right: isTablet ? 16 : 8,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(AppConstants.primaryColorValue),
-            Color(AppConstants.darkBrownValue),
+            Theme.of(context).colorScheme.primary,
+            const Color(AppConstants.darkBrownValue),
           ],
         ),
       ),
@@ -603,7 +607,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
             child: _menuMode
                 ? Center(
                     child: Text(
-                      AppConstants.appName,
+                      widget.brandName,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: isTablet ? 24 : 18,
@@ -672,15 +676,16 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 ),
                 decoration: BoxDecoration(
                   color: isActive
-                      ? const Color(AppConstants.primaryColorValue)
+                      ? Theme.of(context).colorScheme.primary
                       : const Color(0xFFE8D0B3),
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: isActive
                       ? [
                           BoxShadow(
-                            color: const Color(
-                              AppConstants.primaryColorValue,
-                            ).withValues(alpha: 0.3),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -706,16 +711,16 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Widget _buildLoadingState() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SpinKitFoldingCube(
-            color: Color(AppConstants.primaryColorValue),
+            color: Theme.of(context).colorScheme.primary,
             size: 50.0,
           ),
-          SizedBox(height: 20),
-          Text(
+          const SizedBox(height: 20),
+          const Text(
             'Loading delicious products...',
             style: TextStyle(
               fontSize: 16,
@@ -768,7 +773,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
               icon: const Icon(Icons.refresh),
               label: const Text('Try Again'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(AppConstants.primaryColorValue),
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 30,

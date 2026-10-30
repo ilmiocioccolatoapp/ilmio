@@ -1,3 +1,7 @@
+# Historical project documentation
+
+> Archived reference only. Its Render deployment, single-brand API, and old allowlist instructions are obsolete. Follow [README.md](README.md), [DEPLOYMENT.md](DEPLOYMENT.md), and the current v4.2 specification for production setup.
+
 # Il Mio Cioccolato - Complete Project Documentation
 
 ## 📋 Table of Contents

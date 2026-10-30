@@ -49,10 +49,10 @@ class ProductCard extends StatelessWidget {
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(
                           color: const Color(0xFFF3E9DC),
-                          child: const Center(
+                          child: Center(
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Color(AppConstants.primaryColorValue),
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
                         ),
@@ -65,6 +65,11 @@ class ProductCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (!product.available)
+                        const Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Chip(label: Text('Sold out'))),
                     ],
                   ),
                 ),
@@ -121,10 +126,10 @@ class ProductCard extends StatelessWidget {
                             ),
                             child: PriceText(
                               product.price,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
-                                color: Color(AppConstants.primaryColorValue),
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ),

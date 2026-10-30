@@ -1268,3 +1268,14 @@ p, .section-subtitle {
     grid-template-columns: 1fr;
   }
 }
+
+.scope-selectors,.store-actions { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+.scope-selectors label { display:grid; gap:5px; font-size:13px; }
+.scope-selectors select { min-width:160px; max-width:300px; padding:9px; }
+.management-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; }
+.ledger-card { margin-bottom:20px; }
+.store-record { padding:16px 0; border-bottom:1px solid var(--border); }
+.store-actions { margin:16px 0; }
+.menu-table { width:100%; border-collapse:collapse; margin-top:20px; }
+.menu-table th,.menu-table td { text-align:left; padding:12px; border-bottom:1px solid var(--border); }
+.menu-table input:not([type=checkbox]) { width:150px; }

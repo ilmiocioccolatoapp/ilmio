@@ -1,229 +1,76 @@
-# Deployment Guide for Render.com
+# Deployment
 
-This guide will help you deploy the Il Mio Cioccolato application to Render.
+Vercel is the production host for the API and admin app. Render is archived; `render.yaml` and the old Render keep-alive script have been removed. Production schema changes use checked-in Prisma migrations only.
 
-## Prerequisites
+## Vercel projects
 
-1. **GitHub Account** - Your code should be pushed to GitHub
-2. **Render Account** - Sign up at [render.com](https://render.com)
-3. **Render PostgreSQL** - Already configured
-4. **Cloudinary Account** - Already configured
+Create two Vercel projects from this repository:
 
-## Option 1: Deploy Using render.yaml (Recommended)
+| Project | Root directory | Config | Production URL |
+| --- | --- | --- | --- |
+| API | `backend` | `backend/vercel.json` | `https://ilmio-app.vercel.app` |
+| Admin | `admin` | `admin/vercel.json` | `https://ilmio-admin.vercel.app` |
 
-This method deploys both backend and admin panel automatically.
+Build the API with `npm ci` and `npm run prisma:generate`. Do not run migrations from the Vercel build or server startup. The admin build needs `REACT_APP_API_URL`, `REACT_APP_SUPABASE_URL`, and `REACT_APP_SUPABASE_PUBLISHABLE_KEY`.
 
-### Steps:
+## API environment
 
-1. **Push to GitHub**
-   ```bash
-   git push -u origin main
+Set these values in Vercel Project Settings → Environment Variables for Production and Preview as appropriate:
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string, with SSL as required by the provider |
+| `STORE_JWT_SECRET` | Random secret of at least 32 characters for tablet sessions |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_PUBLISHABLE_KEY` | Server-side Auth token verification and self-service recovery email |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only Auth user lookup and invite API; never put this in the admin project |
+| `ADMIN_INVITE_REDIRECT_URL` | `https://ilmio-admin.vercel.app/set-password`; add this path to Supabase Auth’s allowed redirect URLs |
+| `BOOTSTRAP_PLATFORM_ADMIN_EMAIL` | Email of the first confirmed Supabase user who should become Platform Admin |
+| `ADMIN_ORIGINS` | Exact HTTPS browser origins, comma-separated; start with `https://ilmio-admin.vercel.app` |
+| `TRUST_PROXY_HOPS` | `1`, so Express records the Vercel client IP for auth limits and legacy monitoring |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Brand image uploads |
+| `NODE_ENV` | `production` |
+
+Keep the service-role key and database connection string in the API project only. Do not add them to `REACT_APP_*` variables or commit them to the repository. Configure the Supabase email provider/SMTP and redirect allowlist before inviting admins.
+
+## Controlled database release
+
+Run every migration on a staging database first. The repository’s `npm run test:integration` uses a disposable local PostgreSQL cluster and checks the migration chain; it does not access a staging or production database.
+
+1. Take a database backup with `DATABASE_URL` set to the staging connection:
+
+   ```sh
+   cd backend
+   npm ci
+   npm run db:backup -- /secure/path/staging-before-release.dump
    ```
 
-2. **Connect to Render**
-   - Go to [Render Dashboard](https://dashboard.render.com)
-   - Click "New" → "Blueprint"
-   - Connect your GitHub repository: `ilmiocioccolatoapp/ilmio`
-   - Render will automatically detect `render.yaml`
+2. Apply the reviewed migrations to staging:
 
-3. **Set Environment Variables**
-   
-   For **ilmio-backend** service, add:
-   ```
-   DATABASE_URL=postgresql://<user>:<password>@<host>:5432/<db-name>
-   CLOUDINARY_CLOUD_NAME=your_cloud_name
-   CLOUDINARY_API_KEY=your_api_key
-   CLOUDINARY_API_SECRET=your_api_secret
-   SUPABASE_URL=https://your-project-ref.supabase.co
-   SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-   SUPABASE_ADMIN_EMAILS=your-existing-user@example.com
-   NODE_ENV=production
-   ```
-   
-   ⚠️ **Important:** Replace placeholders with your actual credentials from:
-   - Render PostgreSQL Dashboard → Database → Connect
-   - Cloudinary Console → Account Details
-
-   For **ilmio-admin** service, add:
-   ```
-   REACT_APP_API_URL=https://ilmio-backend.onrender.com/api
-   REACT_APP_SUPABASE_URL=https://your-project-ref.supabase.co
-   REACT_APP_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-   ```
-   *(Replace with your actual backend URL after deployment)*
-
-4. **Deploy**
-   - Click "Apply" to start deployment
-   - Wait for both services to build and deploy
-
-## Option 2: Manual Deployment
-
-### Deploy Backend API
-
-1. **Create New Web Service**
-   - Go to Render Dashboard
-   - Click "New" → "Web Service"
-   - Connect your GitHub repository
-   - Configure:
-     - **Name**: `ilmio-backend`
-     - **Root Directory**: `backend`
-     - **Environment**: `Node`
-     - **Build Command**: `npm install`
-     - **Start Command**: `npm start`
-     - **Plan**: Free
-
-2. **Add Environment Variables**
-   ```
-   NODE_ENV=production
-   DATABASE_URL=postgresql://<user>:<password>@<host>:5432/<db-name>
-   CLOUDINARY_CLOUD_NAME=your_cloud_name
-   CLOUDINARY_API_KEY=your_api_key
-   CLOUDINARY_API_SECRET=your_api_secret
-   SUPABASE_URL=https://your-project-ref.supabase.co
-   SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-   SUPABASE_ADMIN_EMAILS=your-existing-user@example.com
-   ```
-   
-   Get your credentials from:
-   - Render PostgreSQL: Database → Connect → Connect your application
-   - Cloudinary: Console → Account Details
-
-3. **Deploy**
-   - Click "Create Web Service"
-   - Note the URL: `https://ilmio-backend.onrender.com`
-
-### Deploy Admin Panel
-
-1. **Create New Static Site**
-   - Click "New" → "Static Site"
-   - Connect your GitHub repository
-   - Configure:
-     - **Name**: `ilmio-admin`
-     - **Root Directory**: `admin`
-     - **Build Command**: `npm install && npm run build`
-     - **Publish Directory**: `build`
-     - **Plan**: Free
-
-2. **Add Environment Variable**
-   ```
-   REACT_APP_API_URL=https://ilmio-backend.onrender.com/api
-   REACT_APP_SUPABASE_URL=https://your-project-ref.supabase.co
-   REACT_APP_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-   ```
-   *(Use your actual backend URL)*
-
-3. **Deploy**
-   - Click "Create Static Site"
-   - Note the URL: `https://ilmioadmin.onrender.com`
-
-## Post-Deployment Steps
-
-### 1. Update Render PostgreSQL Whitelist
-- Go to Render PostgreSQL
-- Navigate to Network Access
-- Add Render's IP: `0.0.0.0/0` (allow from anywhere)
-  - Or add specific Render IPs from their documentation
-
-### 2. Update Mobile App
-Update the API URL in `/mobile/lib/utils/constants.dart`:
-```dart
-static const String baseUrl = 'https://ilmio-backend.onrender.com/api';
-```
-
-### 3. Test the Deployment
-
-1. **Test Backend API**
-   ```bash
-   curl https://ilmio-backend.onrender.com/api/products/available
+   ```sh
+   npm run prisma:deploy
    ```
 
-2. **Test Admin Panel**
-   - Visit: `https://ilmio-admin.onrender.com`
-   - Try logging in and managing products
+3. Smoke-test admin sign-in, tablet login/menu reads, publishing, and invitation email delivery on staging. Rehearse a restore to a separate empty database:
 
-## Important Notes
+   ```sh
+   RESTORE_DATABASE_URL='postgresql://…/ilmio_restore_staging' npm run db:restore-check -- /secure/path/staging-before-release.dump
+   ```
 
-### Free Tier Limitations
-- **Backend**: Service spins down after 15 minutes of inactivity
-  - First request after sleep takes ~30 seconds
-  - Consider upgrading to paid plan for production
+4. Back up production, deploy the same migration commit using `npm run prisma:deploy` with production `DATABASE_URL` from a controlled operator environment, then deploy the API and admin projects. Do not put `prisma migrate deploy` in `vercel.json`, a build command, or startup code. Never use `prisma db push` in production.
 
-- **Static Site**: Always active, no sleep
+5. Verify `/healthz`, `/api/auth/store/login`, `/api/menu`, and `/api/admin/me`. The first healthy request to the new API stamps the legacy monitoring start time; confirm it appears in the adoption report.
 
-### Security Best Practices
+The Vercel project, production database, SMTP configuration, and staging credentials are external to this repository. The runbook is ready, but the staging rehearsal and production bootstrap must be completed by an operator with those credentials.
 
-✅ **DO:**
-- Use environment variables for all secrets
-- Keep `.env` files in `.gitignore`
-- Regularly rotate API keys and passwords
-- Use HTTPS only (Render provides free SSL)
-- Use only the Supabase publishable key in the browser; never expose a secret or service-role key
+## First Platform Admin
 
-❌ **DON'T:**
-- Commit `.env` files to Git
-- Hardcode secrets in code
-- Share PostgreSQL or Cloudinary credentials publicly
+Before the first API deployment, set `BOOTSTRAP_PLATFORM_ADMIN_EMAIL` to the confirmed Supabase account that will own platform setup. That user signs in once; the API binds the verified Supabase identity and creates the first Platform Admin profile. Immediately after confirming `/api/admin/me` reports `isPlatformAdmin: true`, remove `BOOTSTRAP_PLATFORM_ADMIN_EMAIL` from Vercel and redeploy. The Platform Admin creates organizations and brands, then invites Brand Admins from the **Brands** screen. Invitees set their own passwords through Supabase.
 
-### CORS Configuration
-The backend is configured to accept requests from any origin (`origin: '*'`). For production, consider restricting to your admin panel URL:
+## Existing installations
 
-```javascript
-app.use(cors({
-  origin: ['https://ilmioadmin.onrender.com'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-```
+The migration chain includes an adopted baseline and a data-preserving multi-owner migration. For an existing database, confirm its Prisma migration history before applying anything. Do not mark the baseline applied unless it matches the existing schema and the migration guide’s adoption procedure. Back up and rehearse the exact production database on staging first.
 
-## Troubleshooting
+## Legacy retirement
 
-### Backend Won't Start
-- Check environment variables are set correctly
-- Verify PostgreSQL connection string
-- Check Render logs: Dashboard → Service → Logs
-
-### Admin Panel Can't Connect to Backend
-- Verify `REACT_APP_API_URL` is correct
-- Check backend is running
-- Inspect browser console for CORS errors
-
-### Images Not Uploading
-- Verify Cloudinary credentials
-- Check file size (limit: 10MB)
-- Review backend logs
-
-## Monitoring
-
-- **Render Dashboard**: View logs, metrics, and deployment history
-- **Render PostgreSQL**: Monitor database usage
-- **Cloudinary**: Track image storage and bandwidth
-
-## Auto-Deploy
-
-Render automatically deploys when you push to the `main` branch:
-
-```bash
-git add .
-git commit -m "Update feature"
-git push origin main
-```
-
-Both services will rebuild and redeploy automatically.
-
-## Cost Estimate
-
-**Free Tier (Current Setup):**
-- Backend: Free (with sleep after 15min inactivity)
-- Admin Panel: Free
-- **Total: $0/month**
-
-**Recommended for Production:**
-- Backend: Starter ($7/month) - No sleep, always active
-- Admin Panel: Free
-- **Total: $7/month**
-
-## Support
-
-- Render Docs: https://render.com/docs
-- Community: https://community.render.com
-- Status: https://status.render.com
+`GET /api/categories` and `GET /api/products/available` are pinned to the original Il Mio assignment and persist each request’s IP, User-Agent, route, and timestamp. The 30-day clock begins when `/healthz` is first served successfully by the instrumented API after deployment. Run `cd backend && npm run legacy:adoption-report` against the production database. Retire both routes only when its `retirementGateMet` is true for a full 30-day monitoring window **and** every managed tablet is on the authenticated build. See [Legacy adoption gate](docs/LEGACY_ADOPTION.md).

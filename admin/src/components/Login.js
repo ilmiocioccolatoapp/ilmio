@@ -6,6 +6,7 @@ const Login = ({ configError, authError }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event) => {
@@ -30,6 +31,19 @@ const Login = ({ configError, authError }) => {
     }
   };
 
+  const sendReset = async () => {
+    setError(''); setNotice('');
+    if (!supabase || !email.trim()) { setError('Enter your email address first.'); return; }
+    setLoading(true);
+    try {
+      const redirectTo = window.location.origin + '/set-password';
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+      if (resetError) setError(resetError.message);
+      else setNotice('If an account exists for this address, Supabase will email a password setup link.');
+    } catch (resetError) { setError(resetError.message || 'Could not send a password setup email.'); }
+    finally { setLoading(false); }
+  };
+
   return (
     <main className="auth-page">
       <section className="auth-card">
@@ -45,6 +59,7 @@ const Login = ({ configError, authError }) => {
             {configError || authError || error}
           </div>
         )}
+        {notice && <p role="status">{notice}</p>}
 
         <form onSubmit={handleSubmit}>
           <label htmlFor="email">Email</label>
@@ -77,6 +92,7 @@ const Login = ({ configError, authError }) => {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+        <button className="btn btn-ghost" type="button" disabled={!supabase || loading} onClick={sendReset}>Forgot password?</button>
       </section>
     </main>
   );

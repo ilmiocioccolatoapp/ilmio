@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+# Gradle wrapper script (fixed)
+APP_DIR="$(cd "$(dirname "$0")" && pwd)"
+WRAPPER_JAR="$APP_DIR/gradle/wrapper/gradle-wrapper.jar"
+JAVA_CMD=java
+if [ -n "$JAVA_HOME" ]; then
+  JAVA_CMD="$JAVA_HOME/bin/java"
+fi
+# Use the wrapper's main class via classpath instead of -jar
+exec "$JAVA_CMD" -cp "$WRAPPER_JAR" org.gradle.wrapper.GradleWrapperMain "$@"

@@ -50,7 +50,7 @@ const Categories = () => {
 
     try {
       setPendingDelete(previous => ({ ...previous, [category.id]: true }));
-      await deleteCategory(category.id);
+      await deleteCategory(category._id || category.dbId);
     } catch (error) {
       console.error('Error deleting category:', error);
       alert(error.error || 'Failed to delete category');
@@ -65,7 +65,7 @@ const Categories = () => {
     if (saving) return;
     setSaving(true);
     try {
-      await saveCategory(editingCategory?.id, formData);
+      await saveCategory(editingCategory?._id || editingCategory?.dbId, formData);
       setShowModal(false);
     } catch (error) {
       console.error('Error saving category:', error);

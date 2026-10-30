@@ -52,7 +52,7 @@ String _buildCloudinaryUrl(String url, int width) {
     // Insert our transformation (width + auto quality/format) before the
     // remaining path (which usually starts with version 'v123' or the
     // folder/public id).
-    return before + 'w_${width},q_auto,f_auto/' + after;
+    return '${before}w_$width,q_auto,f_auto/$after';
   }
   return url;
 }

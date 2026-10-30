@@ -8,33 +8,270 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Organization {
+  id          String          @id @default(cuid())
+  name        String
+  status      String          @default("active")
+  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime        @updatedAt @db.Timestamptz(3)
+  brands      Brand[]
+  stores      Store[]
+  memberships OrgMembership[]
+}
+
+model Brand {
+  id           String            @id @default(cuid())
+  orgId        String
+  slug         String
+  name         String
+  logoUrl      String?
+  primaryColor String            @default("#8B4513")
+  currency     String            @default("AED") @db.Char(3)
+  timezone     String            @default("Asia/Dubai")
+  status       String            @default("active")
+  createdAt    DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime          @updatedAt @db.Timestamptz(3)
+  org          Organization      @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  categories   Category[]
+  products     Product[]
+  assignments  StoreBrand[]
+  memberships  BrandMembership[]
+  assets       Asset[]
+
+  @@unique([orgId, slug])
+}
+
+model Store {
+  id           String         @id @default(cuid())
+  orgId        String
+  name         String
+  slug         String
+  address      String?
+  phone        String?
+  timezone     String         @default("Asia/Dubai")
+  status       String         @default("active")
+  loginCode    String         @unique
+  passwordHash String
+  tokenVersion Int            @default(0)
+  revision     Int            @default(0)
+  lastLoginAt  DateTime?      @db.Timestamptz(3)
+  failedLogins Int            @default(0)
+  lockedUntil  DateTime?      @db.Timestamptz(3)
+  createdAt    DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime       @updatedAt @db.Timestamptz(3)
+  org          Organization   @relation(fields: [orgId], references: [id], onDelete: Restrict)
+  assignments  StoreBrand[]
+  sessions     StoreSession[]
+
+  @@unique([orgId, slug])
+}
+
+// Cross-owner links require explicit platform-admin approval.
+model StoreBrand {
+  id                   String                 @id @default(cuid())
+  storeId              String
+  brandId              String
+  displayOrder         Int                    @default(0)
+  status               String                 @default("active")
+  approvedBy           String?
+  currentMenuVersionId String?                @unique
+  nextVersion          Int                    @default(0)
+  unpublishedChanges   Boolean                @default(true)
+  createdAt            DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime               @updatedAt @db.Timestamptz(3)
+  store                Store                  @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  brand                Brand                  @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  currentMenu          MenuVersion?           @relation("CurrentMenu", fields: [currentMenuVersionId], references: [id], onDelete: Restrict)
+  menus                MenuVersion[]          @relation("AssignmentMenus")
+  overrides            ProductStoreOverride[]
+
+  @@unique([storeId, brandId])
+  @@unique([id, brandId])
+  @@index([brandId])
+}
+
+model AdminProfile {
+  id               String            @id @default(cuid())
+  supabaseUserId   String?            @unique
+  email            String @unique
+  name             String?
+  isPlatformAdmin  Boolean           @default(false)
+  status           String            @default("active")
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
+  orgMemberships   OrgMembership[]
+  brandMemberships BrandMembership[]
+}
+
+model OrgMembership {
+  id        String       @id @default(cuid())
+  profileId String
+  orgId     String
+  role      String       @default("ORG_ADMIN")
+  createdAt DateTime     @default(now()) @db.Timestamptz(3)
+  profile   AdminProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Restrict)
+
+  @@unique([profileId, orgId])
+  @@index([orgId])
+}
+
+model BrandMembership {
+  id        String       @id @default(cuid())
+  profileId String
+  brandId   String
+  role      String       @default("BRAND_ADMIN")
+  createdAt DateTime     @default(now()) @db.Timestamptz(3)
+  profile   AdminProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  brand     Brand        @relation(fields: [brandId], references: [id], onDelete: Restrict)
+
+  @@unique([profileId, brandId])
+  @@index([brandId])
+}
+
 model Category {
-  dbId      String    @id @default(cuid())
-  id        String    @unique
+  id        String    @id @default(cuid()) @map("dbId")
+  brandId   String
+  code      String    @map("id")
   name      String
   icon      String    @default("📦")
-  order     Int       @default(0)
+  sortOrder Int       @default(0) @map("order")
+  imageUrl  String?
+  isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  brand     Brand     @relation(fields: [brandId], references: [id], onDelete: Restrict)
   products  Product[]
 
-  @@index([order])
+  @@unique([brandId, code])
+  @@unique([id, brandId])
+  @@index([brandId, sortOrder])
 }
 
 model Product {
-  dbId          String   @id @default(cuid())
-  title         String
-  category      String
-  image         String
-  imagePublicId String?
-  description   String
-  ingredients   String
-  price         String
-  available     Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  categoryRef   Category @relation(fields: [category], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  id                 String                 @id @default(cuid()) @map("dbId")
+  brandId            String
+  categoryId         String
+  name               String                 @map("title")
+  legacyCategoryCode String                 @map("category")
+  imageUrl           String                 @map("image")
+  imagePublicId      String?
+  description        String
+  ingredients        String
+  legacyPrice        String                 @map("price")
+  priceAmount        Decimal                @db.Decimal(10, 2)
+  currency           String                 @db.Char(3)
+  isActive           Boolean                @default(true) @map("available")
+  sortOrder          Int                    @default(0)
+  metadata           Json?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  brand              Brand                  @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  category           Category               @relation(fields: [categoryId, brandId], references: [id, brandId], onDelete: Restrict, onUpdate: Restrict)
+  overrides          ProductStoreOverride[]
 
-  @@index([category])
-  @@index([available])
+  @@unique([id, brandId])
+  @@index([brandId, categoryId])
+  @@index([brandId, isActive, sortOrder])
+}
+
+model ProductStoreOverride {
+  id           String     @id @default(cuid())
+  storeBrandId String
+  productId    String
+  brandId      String
+  priceAmount  Decimal?   @db.Decimal(10, 2)
+  isSoldOut    Boolean?
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
+  storeBrand   StoreBrand @relation(fields: [storeBrandId, brandId], references: [id, brandId], onDelete: Cascade)
+  product      Product    @relation(fields: [productId, brandId], references: [id, brandId], onDelete: Cascade)
+
+  @@unique([storeBrandId, productId])
+  @@index([productId, brandId])
+}
+
+model MenuVersion {
+  id           String      @id @default(cuid())
+  storeBrandId String
+  version      Int
+  snapshot     Json
+  publishedBy  String?
+  publishedAt  DateTime    @default(now()) @db.Timestamptz(3)
+  storeBrand   StoreBrand  @relation("AssignmentMenus", fields: [storeBrandId], references: [id], onDelete: Restrict)
+  currentFor   StoreBrand? @relation("CurrentMenu")
+
+  @@unique([storeBrandId, version])
+}
+
+model StoreSession {
+  id           String    @id @default(cuid())
+  storeId      String
+  tokenVersion Int
+  refreshHash  String
+  deviceLabel  String?
+  expiresAt    DateTime  @db.Timestamptz(3)
+  revokedAt    DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  lastSeenAt   DateTime  @default(now()) @db.Timestamptz(3)
+  store        Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@index([storeId])
+}
+
+model LoginAttempt {
+  id         String   @id @default(cuid())
+  realm      String
+  identifier String
+  ip         String
+  success    Boolean
+  at         DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([realm, identifier, at])
+  @@index([realm, ip, at])
+}
+
+model Asset {
+  id        String   @id @default(cuid())
+  brandId   String
+  publicId  String   @unique
+  url       String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  brand     Brand    @relation(fields: [brandId], references: [id], onDelete: Restrict)
+
+  @@index([brandId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorType String
+  actorId   String?
+  orgId     String?
+  brandId   String?
+  storeId   String?
+  entity    String
+  entityId  String
+  action    String
+  diff      Json?
+  at        DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([orgId, at])
+  @@index([brandId, at])
+  @@index([storeId, at])
+}
+
+model LegacyRouteHit {
+  id        String   @id @default(cuid())
+  route     String
+  ip        String
+  userAgent String
+  at        DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([route, at])
+  @@index([at])
+}
+
+model LegacyRouteMonitor {
+  id        String   @id
+  startedAt DateTime? @db.Timestamptz(3)
 }

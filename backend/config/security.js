@@ -26,7 +26,8 @@ function corsMiddleware(env = process.env) {
     // Authentication uses an explicit bearer token, not ambient cookies.
     credentials: false,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'If-None-Match'],
+    exposedHeaders: ['ETag', 'Retry-After', 'X-Store-Id', 'X-Brand-Id']
   });
 }
 

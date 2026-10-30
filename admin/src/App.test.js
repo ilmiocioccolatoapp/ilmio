@@ -1,7 +1,7 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import { authService, productService, categoryService } from './services/api';
+import { authService, productService, categoryService, createCatalogServices, platformService } from './services/api';
 import { supabase } from './supabase';
 
 jest.mock('./supabase', () => ({ supabaseConfigured: true, supabase: { auth: {
@@ -9,11 +9,14 @@ jest.mock('./supabase', () => ({ supabaseConfigured: true, supabase: { auth: {
 } } }));
 jest.mock('./services/api', () => ({
   authService: { getCurrentUser: jest.fn() },
+  createCatalogServices: jest.fn(),
+  platformService: {get:jest.fn(),post:jest.fn(),put:jest.fn(),remove:jest.fn()},
   productService: { getAllProducts: jest.fn(), toggleAvailability: jest.fn(), updateProduct: jest.fn(), deleteProduct: jest.fn() },
   categoryService: { getAllCategories: jest.fn() }
 }));
 let root, element, emit;
 const session = { access_token: 'test-token', user: { id: 'admin-1' } };
+const membership = {profileId:'profile-1',orgMemberships:[],brandMemberships:[{brandId:'brand-1',role:'BRAND_ADMIN'}],orgs:[{id:'org-1',name:'Owner'}],brands:[{id:'brand-1',orgId:'org-1',name:'Il Mio',currency:'AED',timezone:'Asia/Dubai'}]};
 const product = { _id: 'cake-1', title: 'Cake', category: 'cakes', price: 'AED 25.00', available: true, createdAt: '2026-01-01' };
 const flush = async action => { await act(async () => { if (action) action(); }); };
 const button = name => [...element.querySelectorAll('button')].find(b => b.textContent.trim() === name);
@@ -28,7 +31,9 @@ beforeEach(async () => {
     callback('INITIAL_SESSION', session);
     return { data: { subscription: { unsubscribe() {} } } };
   });
-  authService.getCurrentUser.mockResolvedValue({ id: 'admin-1', email: 'admin@example.test' });
+  authService.getCurrentUser.mockResolvedValue({...membership, id: 'admin-1', email: 'admin@example.test' });
+  createCatalogServices.mockReturnValue({productService,categoryService});
+  platformService.get.mockResolvedValue([]);
   productService.getAllProducts.mockResolvedValue({ data: [product] });
   categoryService.getAllCategories.mockResolvedValue([{ _id: 'cat-1', id: 'cakes', name: 'Cakes', order: 1 }]);
   await flush(() => root.render(<App />));
@@ -60,7 +65,7 @@ test('repeated sign-in events keep authorized views visible; refresh revalidates
   authService.getCurrentUser.mockReturnValue(new Promise(resolve => { finish = resolve; }));
   await flush(() => emit('TOKEN_REFRESHED', { ...session, access_token: 'new-test-token' }));
   expect(element.querySelector('.products-grid')).not.toBeNull();
-  await flush(() => finish({ id: 'admin-1', email: 'admin@example.test' }));
+  await flush(() => finish({...membership, id: 'admin-1', email: 'admin@example.test' }));
   expect(productService.getAllProducts).toHaveBeenCalledTimes(1);
 });
 
@@ -105,7 +110,7 @@ test('switching accounts hides the previous catalog until the new account is ver
   expect(element.querySelector('.workspace')).toBeNull();
   expect(element.textContent).toContain('Checking your sign-in');
   productService.getAllProducts.mockResolvedValue({ data: [] });
-  await flush(() => finish({ id: 'admin-2', email: 'other@example.test' }));
+  await flush(() => finish({...membership, id: 'admin-2', email: 'other@example.test' }));
   expect(element.textContent).toContain('other@example.test');
   expect([...element.querySelectorAll('.stat-value')].map(e => e.textContent)).toEqual(['0', '0', '0']);
   expect(productService.getAllProducts).toHaveBeenCalledTimes(2);
@@ -125,4 +130,67 @@ test('overview quick actions use the live catalog and open the working editor', 
   expect(element.querySelector('#price')).not.toBeNull();
   expect(productService.getAllProducts).toHaveBeenCalledTimes(1);
   expect(categoryService.getAllCategories).toHaveBeenCalledTimes(1);
+});
+
+test('same-user brand switches discard old reads and clear the previous product editor', async () => {
+  let finishOld;
+  const betaProducts = { ...productService, getAllProducts: jest.fn().mockResolvedValue({data:[{...product,_id:'tea-2',title:'Beta Tea'}]}) };
+  const both = {...membership,brands:[...membership.brands,{id:'brand-2',orgId:'org-1',name:'Beta',currency:'AED'}],brandMemberships:[...membership.brandMemberships,{brandId:'brand-2',role:'BRAND_ADMIN'}]};
+  createCatalogServices.mockImplementation(brand => ({productService:brand.id==='brand-2'?betaProducts:productService,categoryService}));
+  productService.getAllProducts.mockReturnValue(new Promise(resolve => {finishOld=resolve;}));
+  authService.getCurrentUser.mockResolvedValue({...both,id:'admin-1',email:'admin@example.test'});
+  await flush(() => emit('TOKEN_REFRESHED',{...session,access_token:'more-brands-token'}));
+  await flush(() => button('Products').click());
+  const selector=element.querySelector('select[aria-label="Brand"]');
+  await flush(() => {selector.value='brand-2';selector.dispatchEvent(new Event('change',{bubbles:true}));});
+  expect(element.textContent).toContain('Beta Tea');
+  await flush(() => finishOld({data:[{...product,title:'Late private A data'}]}));
+  expect(element.textContent).not.toContain('Late private A data');
+  expect(element.querySelector('.product-form-container')).toBeNull();
+  expect(betaProducts.getAllProducts).toHaveBeenCalledTimes(1);
+});
+
+test('brand settings use the persistence endpoint and surface failed writes', async () => {
+  await flush(() => button('Settings').click());
+  expect(element.querySelector('#slug')).toBeNull();
+  platformService.put.mockResolvedValue({});
+  const form=element.querySelector('form');
+  await flush(() => form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
+  expect(platformService.put).toHaveBeenCalledWith('/brands/brand-1/settings',expect.objectContaining({name:'Il Mio',currency:'AED'}));
+  expect(element.textContent).toContain('Settings saved as a draft');
+  platformService.put.mockRejectedValue({error:'Could not save this brand'});
+  await flush(() => form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
+  expect(element.textContent).toContain('Could not save this brand');
+});
+
+test('organization administrators only see store operations, not brand catalog tools', async () => {
+  authService.getCurrentUser.mockResolvedValue({...membership,brandMemberships:[],orgMemberships:[{orgId:'org-1',role:'ORG_ADMIN'}],id:'admin-1',email:'owner@example.test'});
+  createCatalogServices.mockClear();
+  platformService.get.mockClear();
+  await flush(() => emit('TOKEN_REFRESHED',{...session,access_token:'org-admin-token'}));
+  expect(button('Stores & owners')).toBeDefined();
+  expect(button('Products')).toBeUndefined();
+  expect(button('Categories')).toBeUndefined();
+  expect(button('Settings')).toBeUndefined();
+  expect(createCatalogServices).not.toHaveBeenCalled();
+  expect(element.textContent).not.toContain('Create brand');
+});
+
+test('Platform Admin can create brands and invite brand administrators from the Brands screen', async () => {
+  const platformUser={...membership,isPlatformAdmin:true,orgs:[{id:'org-1',name:'Owner'}],id:'admin-1',email:'platform@example.test'};
+  authService.getCurrentUser.mockResolvedValue(platformUser);
+  platformService.get.mockResolvedValue([]);
+  await flush(() => emit('TOKEN_REFRESHED',{...session,access_token:'platform-token'}));
+  expect(button('Brands')).toBeDefined();
+  await flush(() => button('Brands').click());
+  expect(element.textContent).toContain('Create brand');
+  expect(element.textContent).toContain('Invite brand administrator');
+  const email=element.querySelector('input[type="email"]');
+  const setValue=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
+  await flush(()=>{setValue.call(email,'brandadmin@example.test');email.dispatchEvent(new Event('input',{bubbles:true}));});
+  platformService.post.mockResolvedValue({membership:{id:'membership-1'},inviteSent:true});
+  const inviteForm=email.closest('form');
+  await flush(()=>inviteForm.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
+  expect(platformService.post).toHaveBeenCalledWith('/brands/brand-1/admins',expect.objectContaining({email:'brandadmin@example.test'}));
+  expect(element.textContent).toContain('Invitation email sent');
 });

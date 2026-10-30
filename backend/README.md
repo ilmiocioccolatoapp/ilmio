@@ -1,83 +1,40 @@
-# Il Mio Cioccolato Backend
+# Menu platform API
 
-Backend API for Il Mio Cioccolato cafe management system.
+Express API for the multi-brand, multi-store menu platform. PostgreSQL is accessed through Prisma. Supabase Auth protects admin routes; store tablets use signed store sessions and read immutable published menu snapshots.
 
-## Features
-- RESTful API with Express.js
-- PostgreSQL database via Prisma
-- Product CRUD operations
-- Availability toggle
-- File upload support
-- CORS enabled
-- Error handling
+## Local development
 
-## Installation
-
-```bash
-npm install
-```
-
-## Environment Setup
-
-Create a `.env` file in the backend directory:
-```env
-PORT=5001
-DATABASE_URL=postgresql://user:password@localhost:5432/ilmiocioccolato
-NODE_ENV=development
-SUPABASE_URL=https://your-project-ref.supabase.co
-SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-SUPABASE_ADMIN_EMAILS=admin@example.com
-```
-
-## Database Setup
-
-Generate Prisma client and apply schema:
-
-```bash
+```sh
+npm ci
+cp .env.example .env
 npm run prisma:generate
-npm run prisma:push
-```
-
-## Admin authentication
-
-Set `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and
-`SUPABASE_ADMIN_EMAILS` in the backend `.env` file. The allowlist contains the
-email address of the Supabase user you created; multiple authorized users can
-be comma-separated. The backend verifies every admin access token with
-Supabase Auth and does not use or need a service-role key. Configure these
-values in the production backend host's environment settings as well.
-
-## Running the Server
-
-Development mode (with auto-reload):
-```bash
-npm run dev
-```
-
-Production mode:
-```bash
 npm start
 ```
 
-## API Endpoints
+Set `DATABASE_URL`, `STORE_JWT_SECRET`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and the Cloudinary values in the local environment. Admin invitation routes also require the server-only `SUPABASE_SERVICE_ROLE_KEY`. Do not put that key in the React app or commit it.
 
-### Products
-- `GET /api/products` - Get all products (admin sign-in required)
-- `GET /api/products/available` - Get available products
-- `POST /api/products` - Create product (admin sign-in required)
-- `PUT /api/products/:id` - Update product (admin sign-in required)
-- `DELETE /api/products/:id` - Delete product (admin sign-in required)
-- `PATCH /api/products/:id/toggle` - Toggle availability (admin sign-in required)
+## Database changes
 
-### Authentication
-- `GET /api/auth/me` - Validate the signed-in admin session
-- Category changes and image-upload signing also require an authorized admin session.
+Use checked-in migrations. To apply them locally or to a controlled staging/production database:
 
-## Technologies
-- Node.js
-- Express.js
-- PostgreSQL
-- Prisma
-- Multer
-- CORS
-- dotenv
+```sh
+npm run prisma:deploy
+```
+
+Production releases must follow the backup, staging, and restore rehearsal in the repository’s [deployment guide](../DEPLOYMENT.md). Never run `prisma db push` in production or from server startup.
+
+The integration harness creates a disposable local PostgreSQL cluster, applies the full migration chain, and runs tenant/session acceptance checks:
+
+```sh
+npm run test:integration
+```
+
+## Legacy route adoption
+
+`GET /api/categories` and `GET /api/products/available` are temporary, pinned reads. Their requests are persisted for the 30-day retirement gate:
+
+```sh
+npm run legacy:adoption-report
+```
+
+See [the adoption gate](../docs/LEGACY_ADOPTION.md) before removing either route.

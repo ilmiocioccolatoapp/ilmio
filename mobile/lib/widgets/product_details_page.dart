@@ -13,7 +13,6 @@ class ProductDetailsPage extends StatelessWidget {
   final Product product;
 
   static const _ink = Color(AppConstants.darkBrownValue);
-  static const _accent = Color(AppConstants.primaryColorValue);
 
   @override
   Widget build(BuildContext context) {
@@ -32,9 +31,10 @@ class ProductDetailsPage extends StatelessWidget {
                   width: double.infinity,
                   height: double.infinity,
                   fit: BoxFit.contain,
-                  placeholder: (context, url) => const Center(
+                  placeholder: (context, url) => Center(
                     child: CircularProgressIndicator(
-                        color: _accent, strokeWidth: 2),
+                        color: Theme.of(context).colorScheme.primary,
+                        strokeWidth: 2),
                   ),
                   errorWidget: (context, url, error) => const Center(
                     child: Icon(Icons.image_not_supported_outlined,
@@ -59,11 +59,12 @@ class ProductDetailsPage extends StatelessWidget {
                       letterSpacing: -0.8,
                     ),
                   ),
+                  if (!product.available) const Chip(label: Text('Sold out')),
                   const SizedBox(height: 18),
                   PriceText(
                     product.price,
-                    style: const TextStyle(
-                      color: _accent,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
                     ),

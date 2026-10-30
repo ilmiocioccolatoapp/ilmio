@@ -1,24 +1,10 @@
-# Il Mio Cioccolato - Web Admin Panel
+# Menu platform admin
 
-## Description
-React-based admin panel for managing Il Mio Cioccolato cafe products.
+React admin console for Platform Admin, Organization Admin, and Brand Admin roles.
 
-## Features
-- Dashboard with statistics
-- Product management (CRUD operations)
-- Category filtering
-- Availability toggle
-- Responsive design
+## Local development
 
-## Installation
-
-```bash
-npm install
-```
-
-## Configuration
-
-Create `admin/.env.local` with the public admin configuration:
+Create `admin/.env.local` with the browser-safe values:
 
 ```env
 REACT_APP_API_URL=http://localhost:5001/api
@@ -26,30 +12,13 @@ REACT_APP_SUPABASE_URL=https://your-project-ref.supabase.co
 REACT_APP_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
-The publishable key is intended for browser use. Never put a Supabase secret or
-service-role key in the admin app. The API checks every admin request against
-Supabase Auth and allows only the addresses listed by `SUPABASE_ADMIN_EMAILS`
-on the backend.
-
-For production, set these `REACT_APP_*` values in the admin hosting provider
-before building the site. The API URL should point to the deployed backend.
-
-## Running the Application
-
-```bash
+```sh
+npm ci
 npm start
 ```
 
-The application will open at `http://localhost:3000`
+The browser uses only a Supabase publishable key. The service-role key belongs in the backend environment only. API authorization is enforced by verified Supabase identity and database memberships; hiding a control in this app is not a substitute for server-side role checks.
 
-## Build for Production
+Platform Admins create brands and invite Brand Admins from **Brands**. Invitees receive a Supabase email and set their own password at `/set-password`. Organization Admins manage stores, assignments, passwords, and tablet sessions. Brand Admins manage their assigned catalogs, branding, overrides, and publication.
 
-```bash
-npm run build
-```
-
-## Technologies Used
-- React 18
-- Axios
-- CSS3 with Flexbox/Grid
-- Functional Components with Hooks
+Deploy from the `admin` root directory using Vercel. Configure `REACT_APP_API_URL`, `REACT_APP_SUPABASE_URL`, and `REACT_APP_SUPABASE_PUBLISHABLE_KEY` as build environment variables. See [deployment](../DEPLOYMENT.md).

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'screens/gallery_screen.dart';
+import 'screens/session_gate.dart';
 import 'services/app_updater.dart';
 import 'utils/constants.dart';
 
@@ -55,7 +55,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: _navKey,
-      title: 'Il mio cioccolato',
+      title: 'Menu Platform',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primaryColor: const Color(AppConstants.primaryColorValue),
@@ -95,7 +95,7 @@ class _MyAppState extends State<MyApp> {
         ),
         useMaterial3: true,
       ),
-      home: const GalleryScreen(),
+      home: const SessionGate(),
     );
   }
 }

@@ -1,175 +1,56 @@
 import axios from 'axios';
 import { supabase } from '../supabase';
-
-const isProduction = process.env.NODE_ENV === 'production';
-let API_URL = process.env.REACT_APP_API_URL;
-
-if (!API_URL) {
-  if (isProduction) {
-    throw new Error('REACT_APP_API_URL environment variable is required in production.');
-  }
-  const defaultHost = 'localhost';
-  const defaultPort = 5001;
-  API_URL = `http://${defaultHost}:${defaultPort}/api`;
-}
-
-const api = axios.create({
-  baseURL: API_URL,
-  timeout: 20000,
+const API_URL=process.env.REACT_APP_API_URL || (process.env.NODE_ENV==='production' ? null : 'http://localhost:5001/api');
+if(!API_URL)throw new Error('REACT_APP_API_URL is required in production.');
+const api=axios.create({baseURL:API_URL,timeout:20000});
+api.interceptors.request.use(async config=>{
+ if(supabase){const {data,error}=await supabase.auth.getSession();if(error)throw error;if(data.session?.access_token)config.headers.Authorization='Bearer '+data.session.access_token;}
+ return config;
 });
-
-api.interceptors.request.use(async (config) => {
-  if (!supabase || config.publicRequest) return config;
-
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-
-  if (data.session?.access_token) {
-    config.headers.Authorization = `Bearer ${data.session.access_token}`;
-  }
-
-  return config;
-});
-
-export const authService = {
-  getCurrentUser: async () => {
-    try {
-      const response = await api.get('/auth/me');
-      return response.data.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
+api.interceptors.response.use(response=>response,error=>Promise.reject(error.response?.data || {error:error.message}));
+export const authService={getCurrentUser:async()=> (await api.get('/admin/me')).data.data};
+const formatted=(amount,currency)=>(currency==='EUR'?'€':currency+' ')+Number(amount).toFixed(2);
+const mapCategory=c=>({...c,_id:c.id,dbId:c.id,id:c.code,order:c.sortOrder,count:c._count?.products??0});
+const mapProduct=p=>({...p,_id:p.id,dbId:p.id,title:p.name,category:p.category?.code||p.legacyCategoryCode,image:p.imageUrl,price:formatted(p.priceAmount,p.currency),available:p.isActive});
+export function createCatalogServices(brand){
+ const prefix='/admin/brands/'+encodeURIComponent(brand.id);
+ async function upload(file){
+  const creds=(await api.post(prefix+'/uploads/sign')).data.data;
+  const data=new FormData();for(const key of ['api_key','timestamp','signature','folder'])data.append(key,key==='api_key'?creds.apiKey:creds[key]);data.append('file',file);
+  const response=await axios.post('https://api.cloudinary.com/v1_1/'+creds.cloudName+'/image/upload',data,{timeout:120000});
+  const asset=(await api.post(prefix+'/assets',{publicId:response.data.public_id})).data.data;
+  return {imageUrl:asset.url,imagePublicId:asset.publicId};
+ }
+ async function payload({fields,file}){
+  const data={name:fields.title,categoryCode:fields.category,description:fields.description,ingredients:fields.ingredients,
+   priceAmount:String(fields.price).replace(/^(?:[A-Z]{3}|€|\u20c3)\s*/,''),isActive:fields.available};
+  if(file)Object.assign(data,await upload(file));
+  return data;
+ }
+ return {
+  productService:{
+   getAllProducts:async()=>({data:(await api.get(prefix+'/items')).data.data.map(mapProduct)}),
+   createProduct:async data=>({data:mapProduct((await api.post(prefix+'/items',await payload(data))).data.data)}),
+   updateProduct:async(id,data)=>({data:mapProduct((await api.put(prefix+'/items/'+encodeURIComponent(id),await payload(data))).data.data)}),
+   toggleAvailability:async(id,isActive)=>({data:mapProduct((await api.put(prefix+'/items/'+encodeURIComponent(id),{isActive})).data.data)}),
+   deleteProduct:async id=>api.delete(prefix+'/items/'+encodeURIComponent(id))
   },
-};
-
-async function uploadImage(file) {
-  const signed = await api.post('/uploads/sign');
-  const creds = signed.data && signed.data.data;
-  if (!creds || !creds.cloudName || !creds.signature) {
-    throw new Error('Could not prepare the image upload.');
+  categoryService:{
+   getAllCategories:async()=> (await api.get(prefix+'/categories')).data.data.map(mapCategory),
+   createCategory:async data=>({data:mapCategory((await api.post(prefix+'/categories',{code:data.id,name:data.name,icon:data.icon,sortOrder:data.order})).data.data)}),
+   updateCategory:async(id,data)=>({data:mapCategory((await api.put(prefix+'/categories/'+encodeURIComponent(id),{code:data.id,name:data.name,icon:data.icon,sortOrder:data.order})).data.data)}),
+   deleteCategory:async id=>api.delete(prefix+'/categories/'+encodeURIComponent(id))
   }
-
-  const body = new FormData();
-  body.append('file', file);
-  body.append('api_key', creds.apiKey);
-  body.append('timestamp', String(creds.timestamp));
-  body.append('signature', creds.signature);
-  body.append('folder', creds.folder);
-
-  const uploaded = await axios.post(
-    `https://api.cloudinary.com/v1_1/${creds.cloudName}/image/upload`,
-    body,
-    { timeout: 120000 }
-  );
-
-  return {
-    image: uploaded.data.secure_url,
-    imagePublicId: uploaded.data.public_id,
-  };
+ };
 }
-
-async function withImage(fields, file) {
-  const payload = { ...fields };
-  if (file) {
-    Object.assign(payload, await uploadImage(file));
-  }
-  return payload;
-}
-
-export const productService = {
-  getAllProducts: async () => {
-    try {
-      const response = await api.get('/products');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  getAvailableProducts: async () => {
-    try {
-      const response = await api.get('/products/available', { publicRequest: true });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  createProduct: async ({ fields, file }) => {
-    try {
-      const payload = await withImage(fields, file);
-      const response = await api.post('/products', payload);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  updateProduct: async (id, { fields, file }) => {
-    try {
-      const payload = await withImage(fields, file);
-      const response = await api.put(`/products/${id}`, payload);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  deleteProduct: async (id) => {
-    try {
-      const response = await api.delete(`/products/${id}`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  toggleAvailability: async (id) => {
-    try {
-      const response = await api.patch(`/products/${id}/toggle`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
+export const platformService={
+ get:async path=>(await api.get('/admin'+path)).data.data,
+ post:async(path,data)=>(await api.post('/admin'+path,data)).data?.data,
+ put:async(path,data)=>(await api.put('/admin'+path,data)).data?.data,
+ remove:async path=>api.delete('/admin'+path),
+ qr:async path=>{
+  const blob=(await api.get('/admin'+path+'/login-qr',{responseType:'blob'})).data;
+  return URL.createObjectURL(blob);
+ }
 };
-
-export const categoryService = {
-  getAllCategories: async () => {
-    try {
-      const response = await api.get('/categories', { publicRequest: true });
-      return response.data.data || [];
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  createCategory: async (categoryData) => {
-    try {
-      const response = await api.post('/categories', categoryData);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  updateCategory: async (id, categoryData) => {
-    try {
-      const response = await api.put(`/categories/${id}`, categoryData);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  deleteCategory: async (id) => {
-    try {
-      const response = await api.delete(`/categories/${id}`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-};
-
 export default api;

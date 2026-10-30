@@ -1,6 +1,7 @@
 class AppConstants {
   // API Configuration - Vercel production
-  static const String baseUrl = 'https://ilmio-app.vercel.app/api';
+  static const String baseUrl = String.fromEnvironment('API_BASE_URL',
+      defaultValue: 'https://ilmio-app.vercel.app/api');
   // For local development use: 'http://localhost:5001/api' (iOS simulator)
   // For Android emulator use: 'http://10.0.2.2:5001/api'
   // For physical device use: 'http://YOUR_IP:5001/api'
@@ -24,8 +25,8 @@ class AppConstants {
   static const double defaultPadding = 16.0;
 
   // App Branding
-  static const String appName = 'Il mio cioccolato';
-  static const String appTagline = 'Artisan Chocolate & Pastries';
+  static const String appName = 'Menu Platform';
+  static const String appTagline = 'Store menus';
 
   // Image sizes (pixels) - landscape-oriented recommendations
   // Targeted for tablet landscape (e.g. Samsung Tab A7 2000x1200)

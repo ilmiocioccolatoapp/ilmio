@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import Dashboard from './components/Dashboard';
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
@@ -6,235 +6,81 @@ import Categories from './components/Categories';
 import Settings from './components/Settings';
 import Analytics from './components/Analytics';
 import Login from './components/Login';
-import {
-  BakerySealIcon,
-  DashboardIcon,
-  ProductsIcon,
-  CategoriesIcon,
-  SettingsIcon,
-  AnalyticsIcon
-} from './components/Icons';
-import { authService } from './services/api';
-import { CatalogProvider } from './data/CatalogContext';
-import { supabase, supabaseConfigured } from './supabase';
+import Management from './components/Management';
+import StoreMenu from './components/StoreMenu';
+import BrandProvisioning from './components/BrandProvisioning';
+import PasswordRecovery from './components/PasswordRecovery';
+import {authService,createCatalogServices,platformService} from './services/api';
+import {CatalogProvider} from './data/CatalogContext';
+import {supabase,supabaseConfigured} from './supabase';
 import './styles/App.css';
-
-function App() {
-  const [session, setSession] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [adminUser, setAdminUser] = useState(null);
-  const [authorizationError, setAuthorizationError] = useState('');
-  const [signOutError, setSignOutError] = useState('');
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [showForm, setShowForm] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
-  const accessToken = session?.access_token;
-  const userId = session?.user?.id;
-  const authorized = adminUser && adminUser.id === userId;
-
-  useEffect(() => {
-    if (!supabase) {
-      setAuthLoading(false);
-      return undefined;
-    }
-
-    let active = true;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, nextSession) => {
-        if (!active) return;
-        setSession(nextSession);
-        setAuthLoading(false);
-        if (!nextSession) setAuthorizationError('');
-      }
-    );
-
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!accessToken) {
-      setAdminUser(null);
-      return undefined;
-    }
-
-    let active = true;
-    setAdminUser(previous => previous?.id === userId ? previous : null);
-    setAuthorizationError('');
-    authService.getCurrentUser()
-      .then((user) => {
-        if (active) {
-          setAdminUser(user);
-          setAuthorizationError('');
-        }
-      })
-      .catch((error) => {
-        if (!active) return;
-        const message = typeof error === 'string'
-          ? error
-          : error?.error || error?.message || 'Could not verify admin access.';
-        setAdminUser(null);
-        setAuthorizationError(Array.isArray(message) ? message.join(', ') : message);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [accessToken, userId]);
-
-  useEffect(() => {
-    setShowForm(false);
-    setEditingProduct(null);
-    setActiveTab('dashboard');
-  }, [userId]);
-
-  const handleSignOut = async () => {
-    setSignOutError('');
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) setSignOutError(error.message);
-    } catch (error) {
-      setSignOutError(error.message || 'Could not sign out. Please try again.');
-    }
-  };
-
-  const handleAddProduct = () => {
-    setEditingProduct(null);
-    setShowForm(true);
-  };
-
-  const handleEditProduct = (product) => {
-    setEditingProduct(product);
-    setShowForm(true);
-  };
-
-  const handleFormSuccess = () => {
-    setShowForm(false);
-    setEditingProduct(null);
-  };
-
-  const handleFormCancel = () => {
-    setShowForm(false);
-    setEditingProduct(null);
-  };
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return <Dashboard onAddProduct={handleAddProduct} onNavigate={setActiveTab} />;
-      case 'products':
-        return <ProductList onEdit={handleEditProduct} />;
-      case 'categories':
-        return <Categories />;
-      case 'settings':
-        return <Settings />;
-      case 'analytics':
-        return <Analytics onAddProduct={handleAddProduct} onNavigateProducts={() => setActiveTab('products')} />;
-      default:
-        return <Dashboard onAddProduct={handleAddProduct} onNavigate={setActiveTab} />;
-    }
-  };
-
-  if (!supabaseConfigured) {
-    return (
-      <Login configError="Supabase is not configured. Set the admin app's Supabase URL and publishable key." />
-    );
-  }
-
-  if (authLoading || (session && !authorized && !authorizationError)) {
-    return (
-      <main className="auth-page">
-        <div className="auth-loading" role="status">Checking your sign-in...</div>
-      </main>
-    );
-  }
-
-  if (!session) {
-    return <Login authError={authorizationError} />;
-  }
-
-  if (!authorized) {
-    return (
-      <main className="auth-page">
-        <section className="auth-card" role="alert">
-          <h1>Admin access unavailable</h1>
-          <p className="auth-description">
-            {authorizationError || 'Your account is not authorized to use this admin panel.'}
-          </p>
-          {signOutError && <div className="auth-error">{signOutError}</div>}
-          <button className="btn btn-primary auth-submit" onClick={handleSignOut}>
-            Sign out
-          </button>
-        </section>
-      </main>
-    );
-  }
-
-  const navigation = [
-    { id: 'dashboard', label: 'Overview', Icon: DashboardIcon },
-    { id: 'products', label: 'Products', Icon: ProductsIcon },
-    { id: 'categories', label: 'Categories', Icon: CategoriesIcon },
-    { id: 'settings', label: 'Settings', Icon: SettingsIcon },
-    { id: 'analytics', label: 'Analytics', Icon: AnalyticsIcon }
-  ];
-  const currentPage = navigation.find(item => item.id === activeTab)?.label || 'Overview';
-  const initials = adminUser.email.slice(0, 2).toUpperCase();
-
-  return (
-    <CatalogProvider key={adminUser.id}>
-      <div className="app">
-        <aside className="sidebar">
-          <div className="sidebar-brand">
-            <span>Il Mio Cioccolato</span>
-            <small>Admin workspace</small>
-          </div>
-          <div className="nav-label">Workspace</div>
-          <nav aria-label="Workspace">
-            <ul className="sidebar-menu">
-              {navigation.map(({ id, label, Icon }) => (
-                <li key={id}>
-                  <button
-                    className={activeTab === id ? 'active' : ''}
-                    aria-current={activeTab === id ? 'page' : undefined}
-                    onClick={() => setActiveTab(id)}
-                  >
-                    <Icon /><span>{label}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
-          <div className="sidebar-footer">
-            <BakerySealIcon size={28} />
-            <div>Il Mio Cioccolato<small>Catalog & kiosk management</small></div>
-          </div>
-        </aside>
-
-        <div className="workspace">
-          <header className="app-header">
-            <div className="header-inner">
-              <div className="breadcrumbs" aria-label="Current page">
-                <span>Workspace</span><span aria-hidden="true">/</span><strong>{currentPage}</strong>
-              </div>
-              <div className="admin-actions">
-                <span className="admin-avatar" aria-hidden="true">{initials}</span>
-                <span className="admin-user">{adminUser.email}</span>
-                {signOutError && <span className="auth-inline-error" role="alert">{signOutError}</span>}
-                <button className="btn btn-ghost btn-sm" onClick={handleSignOut}>Sign out</button>
-              </div>
-            </div>
-          </header>
-          <main className="main-content">{renderContent()}</main>
-        </div>
-
-        {showForm && (
-          <ProductForm product={editingProduct} onSuccess={handleFormSuccess} onCancel={handleFormCancel} />
-        )}
-      </div>
-    </CatalogProvider>
-  );
+const emptyServices={productService:{getAllProducts:async()=>({data:[]})},categoryService:{getAllCategories:async()=>[]}};
+function App(){
+ const [session,setSession]=useState(null),[authLoading,setAuthLoading]=useState(true),[adminUser,setAdminUser]=useState(null),[authorizationError,setAuthorizationError]=useState(''),[passwordRecovery,setPasswordRecovery]=useState(()=>window.location.pathname.replace(/\/+$/,'').endsWith('/set-password'));
+ const [activeTab,setActiveTab]=useState('dashboard'),[orgId,setOrgId]=useState(''),[brandId,setBrandId]=useState(''),[storeId,setStoreId]=useState(''),[assignments,setAssignments]=useState([]);
+ const [showForm,setShowForm]=useState(false),[editingProduct,setEditingProduct]=useState(null);
+ const userId=session?.user?.id,accessToken=session?.access_token;
+ const authorized=adminUser && adminUser.id===userId;
+ useEffect(()=>{if(!supabase){setAuthLoading(false);return;}const {data:{subscription}}=supabase.auth.onAuthStateChange((event,next)=>{if(event==='PASSWORD_RECOVERY'||window.location.pathname.replace(/\/+$/,'').endsWith('/set-password'))setPasswordRecovery(true);if(event==='SIGNED_OUT')setPasswordRecovery(false);setSession(next);setAuthLoading(false);});return ()=>subscription.unsubscribe();},[]);
+ useEffect(()=>{
+  if(!accessToken){setAdminUser(null);return;}
+  let active=true;setAdminUser(old=>old?.id===userId?old:null);setAuthorizationError('');
+  authService.getCurrentUser().then(user=>{if(active)setAdminUser(user);}).catch(error=>{if(active){setAdminUser(null);setAuthorizationError(error.error||error.message||'Could not verify access.');}});
+  return ()=>{active=false;};
+ },[accessToken,userId]);
+ useEffect(()=>{setShowForm(false);setEditingProduct(null);setActiveTab('dashboard');setOrgId('');setBrandId('');setStoreId('');},[userId]);
+ const organizations=adminUser?.orgs||[];
+ const selectedOrg=organizations.find(o=>o.id===orgId)||organizations[0];
+ const brands=(adminUser?.brands||[]).filter(b=>!selectedOrg||b.orgId===selectedOrg.id);
+ const selectedBrand=brands.find(b=>b.id===brandId)||brands[0];
+ const selectedBrandId=selectedBrand?.id;
+ const canCatalog=Boolean(adminUser?.isPlatformAdmin||adminUser?.brandMemberships?.some(m=>m.brandId===selectedBrandId&&m.role==='BRAND_ADMIN'));
+ const canManage=Boolean(adminUser&&(adminUser.isPlatformAdmin||adminUser.orgMemberships?.some(m=>m.orgId===selectedOrg?.id&&m.role==='ORG_ADMIN')));
+ const permissions=JSON.stringify([adminUser?.isPlatformAdmin,adminUser?.orgMemberships,adminUser?.brandMemberships]);
+ const scopeKey=[userId,adminUser?.profileId,selectedOrg?.id,selectedBrand?.id,storeId,permissions].join(':');
+ const scopeRef=useRef(scopeKey);scopeRef.current=scopeKey;
+ useEffect(()=>{setShowForm(false);setEditingProduct(null);},[scopeKey]);
+ useEffect(()=>{let current=true;setAssignments([]);if(selectedBrandId&&canCatalog)platformService.get('/brands/'+selectedBrandId+'/stores').then(data=>{if(current)setAssignments(data);}).catch(()=>{});return()=>{current=false;};},[selectedBrandId,canCatalog,accessToken]);
+ const services=useMemo(()=>selectedBrandId&&canCatalog?createCatalogServices({id:selectedBrandId}):emptyServices,[selectedBrandId,canCatalog]);
+ const reload=async()=>{const expected=userId,expectedScope=scopeKey;const next=await authService.getCurrentUser();if(next.id===expected&&scopeRef.current===expectedScope)setAdminUser(next);};
+ const signOut=async()=>{const {error}=await supabase.auth.signOut();if(error)setAuthorizationError(error.message);};
+ if(!supabaseConfigured)return <Login configError="Configure Supabase to sign in."/>;
+ if(passwordRecovery&&authLoading)return <main className="auth-page"><div role="status">Checking your password link...</div></main>;
+ if(passwordRecovery&&session)return <PasswordRecovery onComplete={()=>setPasswordRecovery(false)}/>;
+ if(passwordRecovery&&!session)return <Login authError="This password setup link is invalid or expired. Request a new one."/>;
+ if(authLoading||(session&&!authorized&&!authorizationError))return <main className="auth-page"><div role="status">Checking your sign-in...</div></main>;
+ if(!session)return <Login authError={authorizationError}/>;
+ if(!authorized)return <main className="auth-page"><section className="auth-card"><h1>Admin access unavailable</h1><p>{authorizationError}</p><button onClick={signOut}>Sign out</button></section></main>;
+ const navigate=tab=>{setActiveTab(tab);setShowForm(false);};
+ const add=()=>{setEditingProduct(null);setShowForm(true);};
+ const edit=product=>{setEditingProduct(product);setShowForm(true);};
+ const close=()=>{if(scopeRef.current===scopeKey){setShowForm(false);setEditingProduct(null);}};
+ const visibleTab=canCatalog?activeTab:'management';
+ const tabs=[...(canCatalog?[['dashboard','Overview'],['products','Products'],['categories','Categories'],['store-menu','Store menus'],['settings','Settings'],['analytics','Analytics']]:[]),...(canManage?[['management','Stores & owners']]:[]),...(adminUser.isPlatformAdmin?[['brands','Brands']]:[])];
+ let content;
+ if(!canCatalog&&!canManage)content=<div className="page-container"><h2>Access unavailable</h2><p>Your account has no active workspace permissions.</p></div>;
+ else if(visibleTab==='brands')content=adminUser.isPlatformAdmin?<BrandProvisioning organizations={organizations} brands={adminUser.brands||[]} selectedOrg={selectedOrg} onChanged={reload}/>:null;
+ else if(visibleTab==='management')content=canManage?<Management key={selectedOrg?.id||'new'} org={selectedOrg} admin={adminUser} onChanged={reload}/>:null;
+ else if(!canCatalog)content=canManage?<Management key={selectedOrg?.id||'new'} org={selectedOrg} admin={adminUser} onChanged={reload}/>:null;
+ else if(!selectedBrand)content=<div className="page-container"><h2>Create your first brand</h2><p>Set up an owner organization, its brands, and physical stores to begin.</p>{canManage&&<button className="btn btn-primary" onClick={()=>navigate('management')}>Set up stores and owners</button>}</div>;
+ else switch(visibleTab){
+  case 'products':content=<ProductList onEdit={edit}/>;break;
+  case 'categories':content=<Categories/>;break;
+  case 'settings':content=<Settings key={selectedBrand.id} brand={selectedBrand} canEditSlug={Boolean(adminUser.isPlatformAdmin)} onSaved={reload}/>;break;
+  case 'analytics':content=<Analytics onAddProduct={add} onNavigateProducts={()=>navigate('products')}/>;break;
+  case 'store-menu':content=<StoreMenu key={scopeKey} brand={selectedBrand} storeId={storeId} assignments={assignments} onSelectStore={setStoreId}/>;break;
+  default:content=<Dashboard onAddProduct={add} onNavigate={navigate}/>;
+ }
+ return <CatalogProvider key={scopeKey} services={services} brand={selectedBrand}>
+  <div className="app"><aside className="sidebar"><div className="sidebar-brand"><span>Menu Platform</span><small>{adminUser.isPlatformAdmin?'Super Admin':'Administration'}</small></div>
+   <nav aria-label="Workspace"><ul className="sidebar-menu">{tabs.map(([id,label])=><li key={id}><button className={visibleTab===id?'active':''} onClick={()=>navigate(id)}>{label}</button></li>)}</ul></nav>
+  </aside><div className="workspace"><header className="app-header"><div className="header-inner">
+   <div className="scope-selectors">
+    <label>Owner<select aria-label="Owner organization" value={selectedOrg?.id||''} onChange={e=>{setOrgId(e.target.value);setBrandId('');setStoreId('');}}>{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
+    <label>Brand<select aria-label="Brand" value={selectedBrand?.id||''} onChange={e=>{setBrandId(e.target.value);setStoreId('');}}>{brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+   </div><div className="admin-actions"><span className="admin-user">{adminUser.email}</span><button className="btn btn-ghost btn-sm" onClick={signOut}>Sign out</button></div>
+  </div></header><main className="main-content">{content}</main></div>
+  {showForm&&selectedBrand&&<ProductForm key={scopeKey} product={editingProduct} onSuccess={close} onCancel={close}/>}</div>
+ </CatalogProvider>;
 }
-
 export default App;
