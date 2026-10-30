@@ -3,11 +3,32 @@ import { supabase } from '../supabase';
 const API_URL=process.env.REACT_APP_API_URL || (process.env.NODE_ENV==='production' ? null : 'http://localhost:5001/api');
 if(!API_URL)throw new Error('REACT_APP_API_URL is required in production.');
 const api=axios.create({baseURL:API_URL,timeout:20000});
+let sessionRefreshPromise;
 api.interceptors.request.use(async config=>{
  if(supabase){const {data,error}=await supabase.auth.getSession();if(error)throw error;if(data.session?.access_token)config.headers.Authorization='Bearer '+data.session.access_token;}
  return config;
 });
-api.interceptors.response.use(response=>response,error=>Promise.reject(error.response?.data || {error:error.message}));
+api.interceptors.response.use(response=>response,async error=>{
+ const config=error.config;
+ if(error.response?.status===401&&supabase&&config&&!config.adminAuthRetried){
+  config.adminAuthRetried=true;
+  try{
+   sessionRefreshPromise ||= supabase.auth.refreshSession()
+    .then(({data, error:refreshError})=>{
+     if(refreshError)throw refreshError;
+     if(!data.session?.access_token)throw new Error('Your sign-in has expired.');
+     return data.session;
+    })
+    .finally(()=>{sessionRefreshPromise=undefined;});
+   const session=await sessionRefreshPromise;
+   config.headers={...config.headers,Authorization:'Bearer '+session.access_token};
+   return api.request(config);
+  }catch(refreshError){
+   return Promise.reject({error:refreshError.message||'Your sign-in has expired. Please sign in again.'});
+  }
+ }
+ return Promise.reject(error.response?.data || {error:error.message});
+});
 export const authService={getCurrentUser:async()=> (await api.get('/admin/me')).data.data};
 const formatted=(amount,currency)=>(currency==='EUR'?'€':currency+' ')+Number(amount).toFixed(2);
 const mapCategory=c=>({...c,_id:c.id,dbId:c.id,id:c.code,order:c.sortOrder,count:c._count?.products??0});
