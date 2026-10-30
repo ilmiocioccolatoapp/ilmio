@@ -150,6 +150,17 @@ test('same-user brand switches discard old reads and clear the previous product 
   expect(betaProducts.getAllProducts).toHaveBeenCalledTimes(1);
 });
 
+test('sign out clears a stale session locally without retaining its refresh error on login', async () => {
+  supabase.auth.signOut.mockImplementation(async () => {
+    emit('SIGNED_OUT', null);
+    return { error: null };
+  });
+  await flush(() => button('Sign out').click());
+  expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+  expect(element.textContent).toContain('Admin sign in');
+  expect(element.textContent).not.toContain('Invalid Refresh Token');
+});
+
 test('brand settings use the persistence endpoint and surface failed writes', async () => {
   await flush(() => button('Settings').click());
   expect(element.querySelector('#slug')).toBeNull();

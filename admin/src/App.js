@@ -46,7 +46,7 @@ function App(){
  useEffect(()=>{let current=true;setAssignments([]);if(selectedBrandId&&canCatalog)platformService.get('/brands/'+selectedBrandId+'/stores').then(data=>{if(current)setAssignments(data);}).catch(()=>{});return()=>{current=false;};},[selectedBrandId,canCatalog,accessToken]);
  const services=useMemo(()=>selectedBrandId&&canCatalog?createCatalogServices({id:selectedBrandId}):emptyServices,[selectedBrandId,canCatalog]);
  const reload=async()=>{const expected=userId,expectedScope=scopeKey;const next=await authService.getCurrentUser();if(next.id===expected&&scopeRef.current===expectedScope)setAdminUser(next);};
- const signOut=async()=>{const {error}=await supabase.auth.signOut();if(error)setAuthorizationError(error.message);};
+ const signOut=async()=>{setAuthorizationError('');try{const {error}=await supabase.auth.signOut({scope:'local'});if(error)setAuthorizationError(error.message);}catch(error){setAuthorizationError(error.message||'Could not sign out. Please try again.');}};
  if(!supabaseConfigured)return <Login configError="Configure Supabase to sign in."/>;
  if(passwordRecovery&&authLoading)return <main className="auth-page"><div role="status">Checking your password link...</div></main>;
  if(passwordRecovery&&session)return <PasswordRecovery onComplete={()=>setPasswordRecovery(false)}/>;
