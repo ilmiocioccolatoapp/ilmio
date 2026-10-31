@@ -5,8 +5,11 @@ const {corsMiddleware,securityHeaders}=require('./config/security');
 const {createRouter}=require('./platform/router');
 const {errors}=require('./platform/http');
 const {logError}=require('./utils/errors');
+const {performance}=require('perf_hooks');
+const processStartedAt=performance.now();
 function createApp({db=require('./config/prisma'),verifyIdentity,authClients}={}){
  const app=express();
+ app.use((req,res,next)=>{req.appInstanceAgeMs=Math.round(performance.now()-processStartedAt);next();});
  if(process.env.TRUST_PROXY_HOPS)app.set('trust proxy',Number(process.env.TRUST_PROXY_HOPS));
  app.disable('x-powered-by');
  app.use(securityHeaders);app.use(corsMiddleware());

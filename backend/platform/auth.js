@@ -2,6 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const { fail, Problem } = require('./http');
 const { audit } = require('./audit');
+const { measure } = require('./timing');
 function verifier() {
   const { SUPABASE_URL:url, SUPABASE_PUBLISHABLE_KEY:key } = process.env;
   if (!url || !key) return async () => { throw new Problem(503, 'Admin authentication is not configured.'); };
@@ -18,27 +19,35 @@ function createAdminAuth(db, verifyIdentity = verifier()) {
     res.set('Cache-Control','no-store');
     const token = tokenOf(req);
     if (jwt.decode(token)?.realm === 'store') fail(403, 'A store session cannot access administration.');
-    const user = await verifyIdentity(token);
+    const [user] = await Promise.all([
+      measure(req,'supabaseAuthMs',()=>verifyIdentity(token)),
+      measure(req,'prismaConnectMs',()=>db.$connect())
+    ]);
     if (!user?.id || !user.email) fail(401, 'Invalid admin session.');
-    let profile = await db.adminProfile.findUnique({where:{supabaseUserId:user.id},include:{orgMemberships:true,brandMemberships:true}});
+    const profileSelect={
+      id:true,email:true,name:true,isPlatformAdmin:true,status:true,
+      orgMemberships:{select:{orgId:true,role:true}},
+      brandMemberships:{select:{brandId:true,role:true}}
+    };
+    let profile = await measure(req,'adminProfileQueryMs',()=>db.adminProfile.findUnique({where:{supabaseUserId:user.id},select:profileSelect}));
     if (!profile && user.email_confirmed_at) {
       // An owner may pre-authorize a verified email without knowing an Auth UUID.
       // Bind it once, then use the immutable Supabase user ID on every request.
-      await db.$transaction(async tx => {
+      await measure(req,'identityBindingTransactionMs',()=>db.$transaction(async tx => {
         const bound = await tx.adminProfile.updateMany({where:{email:user.email.toLowerCase(),supabaseUserId:null},data:{supabaseUserId:user.id}});
         if(bound.count) await audit(tx,null,{},'AdminProfile',user.id,'bind-verified-identity');
-      });
-      profile = await db.adminProfile.findUnique({where:{supabaseUserId:user.id},include:{orgMemberships:true,brandMemberships:true}});
+      }));
+      profile = await measure(req,'adminProfileQueryMs',()=>db.adminProfile.findUnique({where:{supabaseUserId:user.id},select:profileSelect}));
     }
     const bootstrap = process.env.BOOTSTRAP_PLATFORM_ADMIN_EMAIL;
     if (!profile?.isPlatformAdmin && bootstrap && user.email_confirmed_at && user.email.toLowerCase() === bootstrap.toLowerCase()) {
-      profile = await db.$transaction(async tx => {
+      profile = await measure(req,'adminBootstrapTransactionMs',()=>db.$transaction(async tx => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('platform-admin-bootstrap'))`;
         if (await tx.adminProfile.count({where:{isPlatformAdmin:true}})) fail(403, 'Your account has no platform membership.');
         const created = await tx.adminProfile.upsert({where:{supabaseUserId:user.id},create:{supabaseUserId:user.id,email:user.email.toLowerCase(),isPlatformAdmin:true},update:{isPlatformAdmin:true},include:{orgMemberships:true,brandMemberships:true}});
         await audit(tx, created, {}, 'AdminProfile', created.id, 'bootstrap', {isPlatformAdmin:true});
         return created;
-      });
+      }));
     }
     if (!profile || profile.status !== 'active' || (!profile.isPlatformAdmin && !profile.orgMemberships.length && !profile.brandMemberships.length)) fail(403, 'Your account has no active membership.');
     req.admin = profile; req.adminUser = {id:user.id,email:user.email,profileId:profile.id}; next();

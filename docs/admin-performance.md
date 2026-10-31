@@ -1,5 +1,46 @@
 # Admin performance investigation — 27 October 2026
 
+## Dashboard API latency — 31 October 2026
+
+The authenticated production bootstrap request took 2.3 seconds before this
+change; repeated dashboard requests took 2.7–3.7 seconds. Production inspection
+showed the API function in Vercel `iad1`, while the Supabase project used by the
+admin app (`Ilmio-app`, project `dkkfhmwustbajmumvlkm`) and both production
+Prisma connection hosts are in `ap-northeast-2` (Seoul).
+
+The API function is now deployed in Vercel `icn1` (Seoul). Bootstrap reads run
+concurrently, Prisma projections are limited to the data returned to the
+dashboard, and the admin profile query selects only its authorization fields.
+The relevant foreign keys already have index coverage through explicit indexes
+or leading columns of unique indexes, so no database migration was needed.
+
+The first measured bootstrap after deployment took 810.8 ms inside the function:
+Supabase Auth verification took 674.9 ms, profile lookup 37.9 ms, brand lookup
+24.5 ms, organization lookup 68.3 ms, and store lookup 94.5 ms. A subsequent
+warm bootstrap took 233.2 ms total; Supabase Auth verification was 58.7 ms.
+Later warm bootstrap handler samples were 102.8–182.2 ms. Three sequential
+authenticated production requests measured 417.4, 78.3, and 62.1 ms inside the
+function; their browser-observed request times were 617, 291, and 244 ms. A warm
+dashboard handler sample was 89.1 ms. These are individual samples, not
+percentile guarantees. Supabase Auth varied from about 30–59 ms on most warm
+requests to 353–363 ms on two outliers; no change was made to JWT verification
+or revocation behavior.
+
+The API's CORS preflight now advertises a 10-minute browser cache. Before this,
+Vercel recorded an `OPTIONS` request before every dashboard `GET`, typically
+about 190 ms earlier. After deployment, repeated bootstrap requests from the
+same browser no longer generated another preflight.
+
+For ongoing diagnosis, `/api/admin/me`, `/api/admin/bootstrap`, and
+`/api/admin/dashboard` emit `admin_request_performance` JSON logs with phase
+durations, total handler time, and function-instance age. They also return a
+`Server-Timing` header. Production logs can be queried with:
+
+```sh
+vercel logs --project ilmio-app --scope ilmio --since 10m --json \
+  --query 'admin_request_performance'
+```
+
 ## Findings
 
 - The deployed HTML responded in 0.13–0.40 seconds from the development machine.

@@ -111,7 +111,15 @@ test('platform dashboard reports recently active tablet devices and offline stor
  assert.equal(dashboard.onlineWindowMinutes,10);
  assert.equal(dashboard.stores.find(store=>store.id==='downtown').devices[0].deviceLabel,'Front counter');
  assert.deepEqual(dashboard.stores.find(store=>store.id==='marina').devices,[]);
- const bootstrap=await ok('/admin/bootstrap');
+ const bootstrapResponse=await call('/admin/bootstrap');
+ assert.equal(bootstrapResponse.status,200);
+ assert.match(bootstrapResponse.headers.get('server-timing')||'',/supabaseAuthMs;dur=/);
+ assert.match(bootstrapResponse.headers.get('server-timing')||'',/prismaConnectMs;dur=/);
+ assert.match(bootstrapResponse.headers.get('server-timing')||'',/adminProfileQueryMs;dur=/);
+ assert.match(bootstrapResponse.headers.get('server-timing')||'',/brandFindManyMs;dur=/);
+ assert.match(bootstrapResponse.headers.get('server-timing')||'',/organizationFindManyMs;dur=/);
+ assert.match(bootstrapResponse.headers.get('server-timing')||'',/storeFindManyMs;dur=/);
+ const bootstrap=bootstrapResponse.body.data;
  assert.equal(bootstrap.user.isPlatformAdmin,true);
  assert.equal(bootstrap.dashboard.onlineWindowMinutes,10);
  assert.equal(bootstrap.dashboard.stores.find(store=>store.id==='downtown').devices[0].deviceLabel,'Front counter');

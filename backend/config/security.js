@@ -27,7 +27,8 @@ function corsMiddleware(env = process.env) {
     credentials: false,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'If-None-Match'],
-    exposedHeaders: ['ETag', 'Retry-After', 'X-Store-Id', 'X-Brand-Id']
+    exposedHeaders: ['ETag', 'Retry-After', 'Server-Timing', 'X-Store-Id', 'X-Brand-Id'],
+    maxAge: 600
   });
 }
 

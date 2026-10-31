@@ -39,6 +39,7 @@ test('CORS supports exact configured origins and bearer preflight; denies suffix
     assert.equal(res.statusCode, 204);
     assert.equal(res.ended, true);
     assert.match(res.getHeader('Access-Control-Allow-Headers'), /Authorization/);
+    assert.equal(res.getHeader('Access-Control-Max-Age'), '600');
     assert.equal(res.getHeader('Access-Control-Allow-Credentials'), undefined);
     assert.match(res.getHeader('Vary'), /Origin/);
   }
