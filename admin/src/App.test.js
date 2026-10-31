@@ -44,6 +44,8 @@ afterEach(async () => { await flush(() => root.unmount()); element.remove(); });
 test('tab navigation and acknowledged availability changes require no full-catalog refetch', async () => {
   await flush(() => button('Products').click());
   expect(element.textContent).toContain('Cake');
+  expect(element.querySelector('.product-image-placeholder')).not.toBeNull();
+  expect(element.querySelector('.sidebar-menu button svg')).not.toBeNull();
   productService.toggleAvailability.mockResolvedValue({ data: { ...product, available: false } });
   await flush(() => button('Suspend').click());
   expect(button('Resume')).toBeDefined();
@@ -212,7 +214,38 @@ test('Platform Admin has a dashboard and simple store and brand management secti
   await flush(() => button('Brand management').click());
   expect(element.querySelector('.brand-card')).not.toBeNull();
   expect(element.textContent).toContain('Coffee Beans World');
-  expect(button('+ Add brand')).toBeDefined();
+  expect(button('Add brand')).toBeDefined();
+});
+
+test('Manage branches filters stores to the selected brand and opens its assignment', async () => {
+  const platformUser={...membership,isPlatformAdmin:true,orgs:[{id:'org-1',name:'Owner'}],brands:[
+    {id:'brand-1',orgId:'org-1',name:'Il Mio Cioccolato',slug:'ilmio',currency:'AED',timezone:'Asia/Dubai',status:'active'},
+    {id:'brand-2',orgId:'org-1',name:'Coffee Beans World',slug:'cbw',currency:'AED',timezone:'Asia/Dubai',status:'active'}
+  ],id:'admin-1',email:'platform@example.test'};
+  authService.getCurrentUser.mockResolvedValue(platformUser);
+  const coffeeAssignment={id:'assignment-coffee',storeId:'store-1',brandId:'brand-2',brand:platformUser.brands[1],status:'active',store:{id:'store-1',name:'Main store'}};
+  platformService.get.mockImplementation(path => {
+    if(path==='/stores') return Promise.resolve([
+      {id:'store-1',orgId:'org-1',name:'Main store',loginCode:'main',status:'active',assignments:[
+        {id:'assignment-ilmio',brand:platformUser.brands[0],status:'active'},coffeeAssignment
+      ]},
+      {id:'store-2',orgId:'org-1',name:'Il Mio branch',loginCode:'ilmio-branch',status:'active',assignments:[
+        {id:'assignment-other',brand:platformUser.brands[0],status:'active'}
+      ]}
+    ]);
+    if(path==='/brands/brand-2/stores') return Promise.resolve([coffeeAssignment]);
+    return Promise.resolve([]);
+  });
+  await flush(() => emit('TOKEN_REFRESHED',{...session,access_token:'platform-branch-filter-token'}));
+  await flush(() => button('Brand management').click());
+  await flush(() => element.querySelector('[aria-label="Manage branches for Coffee Beans World"]').click());
+  expect(element.textContent).toContain('Stores assigned to Coffee Beans World');
+  expect(element.querySelectorAll('.store-card')).toHaveLength(1);
+  expect(element.textContent).toContain('Main store');
+  expect(element.textContent).not.toContain('Il Mio branch');
+  await flush(() => element.querySelector('.store-card-main').click());
+  expect(element.textContent).toContain('Coffee Beans World menu');
+  expect(element.textContent).toContain('Store availability & publishing');
 });
 
 test('Platform Admin renders bootstrap dashboard without a second dashboard request', async () => {
@@ -244,9 +277,9 @@ test('Platform Admin keeps Stores top-level and can create a store from its dire
   expect(button('Store management')).toBeDefined();
   expect(button('Brand management')).toBeDefined();
   await flush(() => button('Store management').click());
-  expect(button('+ Create store')).toBeDefined();
+  expect(button('Create store')).toBeDefined();
   expect(element.textContent).toContain('Select a store card to manage its menu, devices, and tablet login.');
-  await flush(() => button('+ Create store').click());
+  await flush(() => button('Create store').click());
   expect(element.querySelector('[role="dialog"]')).not.toBeNull();
   expect(element.querySelector('[role="dialog"]').textContent).not.toContain('Owner');
   expect(element.querySelectorAll('[role="dialog"] select')).toHaveLength(1);
@@ -292,13 +325,12 @@ test('store cards open menu, categories, and tablet login for the selected store
   expect(element.textContent).toContain('Main store');
   expect(button('Menu')).toBeDefined();
   expect(button('Categories')).toBeDefined();
-  expect(button('Device management')).toBeDefined();
+  expect(button('Devices')).toBeDefined();
   expect(button('Tablet login')).toBeDefined();
-  await flush(() => button('Store availability & publishing').click());
+  expect(element.textContent).toContain('Store availability & publishing');
   expect(element.textContent).toContain('Publish to this store');
-  expect(button('← Back to store')).toBeDefined();
-  await flush(() => button('← Back to store').click());
-  await flush(() => button('Device management').click());
+  expect(button('Menu items')).toBeUndefined();
+  await flush(() => button('Devices').click());
   expect(element.textContent).toContain('Front tablet');
   expect(element.textContent).toContain('Online');
   expect(platformService.get).toHaveBeenCalledWith('/orgs/org-1/stores/store-1/sessions');

@@ -16,11 +16,13 @@ import PasswordRecovery from './components/PasswordRecovery';
 import {authService,createCatalogServices,platformService} from './services/api';
 import {CatalogProvider} from './data/CatalogContext';
 import {supabase,supabaseConfigured} from './supabase';
+import {AnalyticsIcon,CategoriesIcon,DashboardIcon,ProductsIcon,SettingsIcon,StoreIcon} from './components/Icons';
 import './styles/App.css';
 const emptyServices={productService:{getAllProducts:async()=>({data:[]})},categoryService:{getAllCategories:async()=>[]}};
+const navigationIcons={dashboard:DashboardIcon,stores:StoreIcon,management:StoreIcon,brands:CategoriesIcon,products:ProductsIcon,categories:CategoriesIcon,'store-menu':StoreIcon,settings:SettingsIcon,analytics:AnalyticsIcon};
 function App(){
  const [session,setSession]=useState(null),[authLoading,setAuthLoading]=useState(true),[adminUser,setAdminUser]=useState(null),[authorizationError,setAuthorizationError]=useState(''),[platformDashboard,setPlatformDashboard]=useState(null),[passwordRecovery,setPasswordRecovery]=useState(()=>window.location.pathname.replace(/\/+$/,'').endsWith('/set-password'));
- const [activeTab,setActiveTab]=useState('dashboard'),[orgId,setOrgId]=useState(''),[brandId,setBrandId]=useState(''),[storeId,setStoreId]=useState(''),[selectedStoreId,setSelectedStoreId]=useState(''),[selectedStore,setSelectedStore]=useState(null),[branchMenu,setBranchMenu]=useState(false),[assignments,setAssignments]=useState([]);
+ const [activeTab,setActiveTab]=useState('dashboard'),[orgId,setOrgId]=useState(''),[brandId,setBrandId]=useState(''),[storeId,setStoreId]=useState(''),[selectedStoreId,setSelectedStoreId]=useState(''),[selectedStore,setSelectedStore]=useState(null),[branchMenu,setBranchMenu]=useState(false),[assignments,setAssignments]=useState([]),[storeBrandFilter,setStoreBrandFilter]=useState('');
  const [showForm,setShowForm]=useState(false),[editingProduct,setEditingProduct]=useState(null);
  const verifiedUserId=useRef(null);
  const userId=session?.user?.id,accessToken=session?.access_token;
@@ -37,7 +39,7 @@ function App(){
   request.catch(error=>{if(active){setAdminUser(null);setAuthorizationError(error.error||error.message||'Could not verify access.');}});
   return ()=>{active=false;};
  },[accessToken,userId]);
- useEffect(()=>{setShowForm(false);setEditingProduct(null);setActiveTab('dashboard');setOrgId('');setBrandId('');setStoreId('');setSelectedStoreId('');setSelectedStore(null);setBranchMenu(false);},[userId]);
+ useEffect(()=>{setShowForm(false);setEditingProduct(null);setActiveTab('dashboard');setOrgId('');setBrandId('');setStoreId('');setSelectedStoreId('');setSelectedStore(null);setBranchMenu(false);setStoreBrandFilter('');},[userId]);
  useEffect(()=>{if(adminUser?.isPlatformAdmin)setActiveTab('dashboard');},[adminUser?.isPlatformAdmin,userId]);
  const organizations=adminUser?.orgs||[];
  const brands=[...(adminUser?.brands||[])].sort((a,b)=>a.createdAt&&b.createdAt?a.createdAt.localeCompare(b.createdAt):0);
@@ -63,8 +65,9 @@ function App(){
  if(authLoading||(session&&!authorized&&!authorizationError))return <main className="auth-page"><div role="status">Checking your sign-in...</div></main>;
  if(!session)return <Login authError={authorizationError}/>;
  if(!authorized)return <main className="auth-page"><section className="auth-card"><h1>Admin access unavailable</h1><p>{authorizationError}</p><button onClick={signOut}>Sign out</button></section></main>;
- const navigate=tab=>{setActiveTab(tab);setShowForm(false);setBranchMenu(false);if(tab!=='stores')setSelectedStore(null);};
- const openStore=(store,assignment)=>{const selected={...store,assignments:store.assignments||(assignment?[assignment]:[])};setSelectedStore(selected);setSelectedStoreId(selected.id);setStoreId(selected.id);setOrgId(selected.orgId);const activeAssignment=selected.assignments.find(item=>item.status==='active');setBrandId(activeAssignment?.brand.id||'');setBranchMenu(false);setActiveTab('stores');};
+ const navigate=tab=>{setActiveTab(tab);setShowForm(false);setBranchMenu(false);if(tab==='stores')setStoreBrandFilter('');if(tab!=='stores')setSelectedStore(null);};
+ const openStore=(store,assignment)=>{const storeAssignments=store.assignments||(assignment?[assignment]:[]);const selected={...store,assignments:assignment?[assignment,...storeAssignments.filter(item=>item.id!==assignment.id)]:storeAssignments};setSelectedStore(selected);setSelectedStoreId(selected.id);setStoreId(selected.id);setOrgId(selected.orgId);const activeAssignment=assignment||selected.assignments.find(item=>item.status==='active');setBrandId(activeAssignment?.brand.id||'');setBranchMenu(false);setActiveTab('stores');};
+ const manageBrandBranches=brand=>{setStoreBrandFilter(brand.id);setSelectedStore(null);setShowForm(false);setActiveTab('stores');};
  const manageBranchMenu=(store,brand)=>{setSelectedStoreId(store.id);setStoreId(store.id);setOrgId(store.orgId||selectedOrg?.id||'');setBrandId(brand.id);setBranchMenu(true);setActiveTab('store-menu');};
  const backToStore=()=>{setBranchMenu(false);setActiveTab('management');};
  const add=()=>{setEditingProduct(null);setShowForm(true);};
@@ -75,8 +78,8 @@ function App(){
  let content;
  if(!canCatalog&&!canManage)content=<div className="page-container"><h2>Access unavailable</h2><p>Your account has no active workspace permissions.</p></div>;
  else if(adminUser.isPlatformAdmin&&visibleTab==='dashboard')content=<PlatformDashboard initialDashboard={platformDashboard} onOpenStore={openStore}/>;
- else if(adminUser.isPlatformAdmin&&visibleTab==='brands')content=<BrandProvisioning brands={brands} onChanged={reload}/>;
- else if(adminUser.isPlatformAdmin&&visibleTab==='stores'&&!selectedStore)content=<SuperAdminStores brands={brands} onOpenStore={store=>openStore(store)}/>;
+ else if(adminUser.isPlatformAdmin&&visibleTab==='brands')content=<BrandProvisioning brands={brands} onChanged={reload} onManageBranches={manageBrandBranches}/>;
+ else if(adminUser.isPlatformAdmin&&visibleTab==='stores'&&!selectedStore)content=<SuperAdminStores brands={brands} brandFilter={storeBrandFilter} brandFilterName={brands.find(brand=>brand.id===storeBrandFilter)?.name} onClearBrandFilter={()=>setStoreBrandFilter('')} onOpenStore={openStore}/>;
  else if(adminUser.isPlatformAdmin&&visibleTab==='stores'&&selectedStore)content=<SuperAdminStoreWorkspace store={selectedStore} brands={brands} assignments={assignments} onStoreUpdated={setSelectedStore} onBack={()=>setSelectedStore(null)} onEditProduct={edit}/>;
  else if(visibleTab==='management')content=canManage?<Management key={selectedOrg?.id||'new'} org={selectedOrg} admin={adminUser} onChanged={reload} selectedStoreId={selectedStoreId} onSelectStore={setSelectedStoreId} canManageMenu={canCatalog} onManageMenu={manageBranchMenu}/>:null;
  else if(!canCatalog)content=canManage?<Management key={selectedOrg?.id||'new'} org={selectedOrg} admin={adminUser} onChanged={reload} selectedStoreId={selectedStoreId} onSelectStore={setSelectedStoreId} canManageMenu={canCatalog} onManageMenu={manageBranchMenu}/>:null;
@@ -91,12 +94,12 @@ function App(){
  }
  return <CatalogProvider key={scopeKey} services={services} brand={selectedBrand}>
   <div className="app"><aside className="sidebar"><div className="sidebar-brand"><span>Menu Platform</span><small>{adminUser.isPlatformAdmin?'Super Admin':'Administration'}</small></div>
-   <nav aria-label="Workspace"><ul className="sidebar-menu">{tabs.map(([id,label])=><li key={id}><button className={visibleTab===id?'active':''} onClick={()=>navigate(id)}>{label}</button></li>)}</ul></nav>
+   <nav aria-label="Workspace"><ul className="sidebar-menu">{tabs.map(([id,label])=>{const Icon=navigationIcons[id];return <li key={id}><button className={visibleTab===id?'active':''} onClick={()=>navigate(id)}>{Icon&&<Icon size={18} className="sidebar-nav-icon"/>}{label}</button></li>;})}</ul></nav>
   </aside><div className="workspace"><header className="app-header"><div className="header-inner">
    <div className="scope-selectors">
     {visibleTab==='management'&&<label>Owner<select aria-label="Owner organization" value={selectedOrg?.id||''} onChange={e=>{const nextOrgId=e.target.value;setOrgId(nextOrgId);setBrandId(brands.find(b=>b.orgId===nextOrgId)?.id||'');setStoreId('');}}>{organizations.map(o=><option key={o.id} value={o.id}>{o.displayName||o.name}</option>)}</select></label>}
     {!adminUser.isPlatformAdmin&&visibleTab!=='management'&&visibleTab!=='brands'&&!branchMenu&&selectedBrand&&<label>Brand<select aria-label="Brand" value={selectedBrand.id} onChange={e=>{const nextBrand=brands.find(b=>b.id===e.target.value);setBrandId(e.target.value);setOrgId(nextBrand?.orgId||'');setStoreId('');}}>{brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>}
-   </div><div className="admin-actions"><span className="admin-user">{adminUser.email}</span><button className="btn btn-ghost btn-sm" onClick={signOut}>Sign out</button></div>
+   </div><div className="admin-actions"><div className="admin-user-profile"><span className="admin-avatar" aria-hidden="true">{adminUser.email?.trim().charAt(0).toUpperCase()||'A'}</span><span className="admin-user">{adminUser.email}</span></div><button className="btn btn-ghost btn-sm" onClick={signOut}>Sign out</button></div>
   </div></header><main className="main-content">{content}</main></div>
   {showForm&&selectedBrand&&<ProductForm key={scopeKey} product={editingProduct} onSuccess={close} onCancel={close}/>}</div>
  </CatalogProvider>;

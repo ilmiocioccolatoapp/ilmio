@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { platformService } from '../services/api';
+import { MapPinIcon, PlusIcon, TrashIcon } from './Icons';
 
-export default function SuperAdminStores({ brands, onOpenStore }) {
+export default function SuperAdminStores({ brands, brandFilter = '', brandFilterName = '', onClearBrandFilter, onOpenStore }) {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -10,6 +11,7 @@ export default function SuperAdminStores({ brands, onOpenStore }) {
   const [deletingStoreId, setDeletingStoreId] = useState('');
   const [storeActionError, setStoreActionError] = useState('');
   const [storeActionMessage, setStoreActionMessage] = useState('');
+  const visibleStores = stores.filter(store => !brandFilter || (store.assignments || []).some(assignment => assignment.brand.id === brandFilter));
 
   const loadStores = async () => {
     setError('');
@@ -60,11 +62,14 @@ export default function SuperAdminStores({ brands, onOpenStore }) {
       <div className="section-header">
         <div>
           <h1 className="section-title">Store management</h1>
-          <p className="section-subtitle">Select a store card to manage its menu, devices, and tablet login.</p>
+          <p className="section-subtitle">{brandFilter
+            ? `Stores assigned to ${brandFilterName || 'this brand'}.`
+            : 'Select a store card to manage its menu, devices, and tablet login.'}</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setCreateOpen(true)}>
-          + Create store
-        </button>
+        <div className="store-directory-actions">
+          {brandFilter && <button type="button" className="btn btn-ghost btn-sm" onClick={onClearBrandFilter}>Clear brand filter</button>}
+          <button className="btn btn-primary" onClick={() => setCreateOpen(true)}><PlusIcon /><span>Create store</span></button>
+        </div>
       </div>
       {storeActionError && <p role="alert">{storeActionError}</p>}
       {storeActionMessage && <p role="status">{storeActionMessage}</p>}
@@ -77,14 +82,17 @@ export default function SuperAdminStores({ brands, onOpenStore }) {
           <p>{error}</p>
           <button className="btn btn-primary" onClick={() => setReloadKey(key => key + 1)}>Try again</button>
         </div>
-      ) : stores.length ? (
-        <div className="store-card-grid" aria-label="All stores">
-          {stores.map(store => (
+      ) : visibleStores.length ? (
+        <div className="store-card-grid" aria-label={brandFilter ? `${brandFilterName || 'Brand'} stores` : 'All stores'}>
+          {visibleStores.map(store => {
+            const matchingAssignment = (store.assignments || []).find(assignment => assignment.brand.id === brandFilter && assignment.status === 'active')
+              || (store.assignments || []).find(assignment => assignment.brand.id === brandFilter);
+            return (
             <article className="store-card" key={store.id}>
               <button
                 type="button"
                 className="store-card-main"
-                onClick={() => onOpenStore(store)}
+                onClick={() => onOpenStore(store, matchingAssignment)}
                 aria-label={`Manage ${store.name}`}
               >
                 <span className="store-card-heading">
@@ -92,7 +100,8 @@ export default function SuperAdminStores({ brands, onOpenStore }) {
                   <span className={`store-card-status ${store.status === 'active' ? 'is-active' : ''}`}>{store.status}</span>
                 </span>
                 <span className="store-card-id">Tablet Store ID <strong>{store.loginCode}</strong></span>
-                <span className="store-card-brands">{store.assignments.length
+                <span className="store-card-address"><MapPinIcon size={15} /><span>{store.address || 'Address not set'}</span></span>
+                <span className="store-card-brands">{store.assignments?.length
                   ? store.assignments.map(assignment => assignment.brand.name).join(', ')
                   : 'No menu assigned'}</span>
                 <span className="store-card-open">Manage store <span aria-hidden="true">→</span></span>
@@ -100,20 +109,23 @@ export default function SuperAdminStores({ brands, onOpenStore }) {
               <div className="store-card-footer">
                 <button
                   type="button"
-                  className="btn btn-ghost-danger btn-sm store-card-delete"
+                  className="icon-danger-button store-card-delete"
+                  aria-label={`Delete ${store.name}`}
+                  title={`Delete ${store.name}`}
                   onClick={() => deleteStore(store)}
                   disabled={Boolean(deletingStoreId)}
                 >
-                  {deletingStoreId === store.id ? 'Deleting…' : 'Delete store'}
+                  {deletingStoreId === store.id ? 'Deleting…' : <TrashIcon />}
                 </button>
               </div>
             </article>
-          ))}
+          );})}
         </div>
       ) : (
         <div className="ledger-card">
-          <h2>No stores found</h2>
-          <p>Create a store to set up its menu and tablet login.</p>
+          <h2>{brandFilter ? 'No stores assigned to this brand' : 'No stores found'}</h2>
+          <p>{brandFilter ? 'Assign this brand to a store to see it here.' : 'Create a store to set up its menu and tablet login.'}</p>
+          {brandFilter && <button type="button" className="btn btn-ghost" onClick={onClearBrandFilter}>Show all stores</button>}
         </div>
       )}
 

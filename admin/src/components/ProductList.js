@@ -7,7 +7,8 @@ import {
   PencilIcon,
   TrashIcon,
   PauseCircleIcon,
-  PlayCircleIcon
+  PlayCircleIcon,
+  CoffeeCupIcon
 } from './Icons';
 
 const ProductList = ({ onEdit }) => {
@@ -130,19 +131,7 @@ const ProductList = ({ onEdit }) => {
             const productId = product._id || product.dbId || product.id;
             return (
               <article key={productId} className={`product-card ${!product.available ? 'unavailable' : ''}`}>
-                <div className="product-image">
-                  <img
-                    src={catalogImageUrl(product.image) || 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=600&q=80'}
-                    alt={product.title}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <div className={`status-indicator ${product.available ? 'available' : 'unavailable'}`}>
-                    <span className="status-dot"></span>
-                    <span>{product.available ? 'Available' : 'Suspended'}</span>
-                  </div>
-                </div>
-
+                <ProductImage product={product} />
                 <div className="product-content">
                   <div className="product-header">
                     <h3>{product.title}</h3>
@@ -201,5 +190,21 @@ const ProductList = ({ onEdit }) => {
     </div>
   );
 };
+
+function ProductImage({ product }) {
+  const [failed, setFailed] = useState(false);
+  const imageUrl = catalogImageUrl(product.image || product.imageUrl || product.image_url);
+  return (
+    <div className="product-image">
+      {imageUrl && !failed
+        ? <img src={imageUrl} alt={product.title} loading="lazy" decoding="async" onError={() => setFailed(true)} />
+        : <div className="product-image-placeholder" role="img" aria-label={`${product.title} image unavailable`}><CoffeeCupIcon size={46} /></div>}
+      <div className={`status-indicator ${product.available ? 'available' : 'unavailable'}`}>
+        <span className="status-dot"></span>
+        <span>{product.available ? 'Available' : 'Suspended'}</span>
+      </div>
+    </div>
+  );
+}
 
 export default ProductList;

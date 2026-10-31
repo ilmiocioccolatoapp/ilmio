@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { platformService } from '../services/api';
+import { PlusIcon, StoreIcon, TrashIcon } from './Icons';
 
 const emptyBrand = { name: '', slug: '', currency: 'AED', timezone: 'Asia/Dubai' };
 
-export default function BrandProvisioning({ brands, onChanged }) {
+export default function BrandProvisioning({ brands, onChanged, onManageBranches }) {
   const [brandList, setBrandList] = useState(brands);
   const [createOpen, setCreateOpen] = useState(false);
   const [values, setValues] = useState(emptyBrand);
@@ -80,7 +81,8 @@ export default function BrandProvisioning({ brands, onChanged }) {
           <p className="section-subtitle">Manage the brands available to your stores.</p>
         </div>
         <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>
-          + Add brand
+          <PlusIcon />
+          <span>Add brand</span>
         </button>
       </div>
       {message && <p role="status">{message}</p>}
@@ -90,7 +92,8 @@ export default function BrandProvisioning({ brands, onChanged }) {
           {brandList.map(brand => (
             <article className="brand-card" key={brand.id}>
               <div className="brand-card-heading">
-                <div>
+                <BrandLogo brand={brand} />
+                <div className="brand-card-title-group">
                   <h2>{brand.name}</h2>
                   <span className="brand-card-slug">{brand.slug}</span>
                 </div>
@@ -99,7 +102,13 @@ export default function BrandProvisioning({ brands, onChanged }) {
               <p>{brand.currency} · {brand.timezone}</p>
               <div className="brand-card-actions">
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => openEdit(brand)}>Edit</button>
-                <button type="button" className="btn btn-ghost-danger btn-sm" onClick={() => deleteBrand(brand)} disabled={busy}>Delete</button>
+                <button type="button" className="btn btn-ghost btn-sm" aria-label={`Manage branches for ${brand.name}`} onClick={() => onManageBranches?.(brand)}>
+                  <StoreIcon size={15} />
+                  <span>Manage branches</span>
+                </button>
+                <button type="button" className="icon-danger-button" aria-label={`Delete ${brand.name}`} title={`Delete ${brand.name}`} onClick={() => deleteBrand(brand)} disabled={busy}>
+                  <TrashIcon />
+                </button>
               </div>
             </article>
           ))}
@@ -108,7 +117,7 @@ export default function BrandProvisioning({ brands, onChanged }) {
         <section className="ledger-card brand-empty">
           <h2>No brands yet</h2>
           <p>Add a brand before assigning a menu to a store.</p>
-          <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>Add your first brand</button>
+          <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}><PlusIcon />Add your first brand</button>
         </section>
       )}
 
@@ -131,7 +140,7 @@ export default function BrandProvisioning({ brands, onChanged }) {
             </label>
             <div className="store-actions">
               <button type="button" className="btn btn-ghost" onClick={() => setCreateOpen(false)}>Cancel</button>
-              <button className="btn btn-primary" disabled={busy}>Add brand</button>
+              <button className="btn btn-primary" disabled={busy}><PlusIcon />Add brand</button>
             </div>
           </form>
         </Modal>
@@ -168,6 +177,18 @@ export default function BrandProvisioning({ brands, onChanged }) {
         </Modal>
       )}
     </div>
+  );
+}
+
+function BrandLogo({ brand }) {
+  const [failed, setFailed] = useState(false);
+  const initial = brand.name?.trim().charAt(0).toUpperCase() || '?';
+  return (
+    <span className="brand-logo" style={{ '--brand-color': brand.primaryColor || '#a16c48' }}>
+      {brand.logoUrl && !failed
+        ? <img src={brand.logoUrl} alt={`${brand.name} logo`} onError={() => setFailed(true)} />
+        : <span aria-label={`${brand.name} logo placeholder`}>{initial}</span>}
+    </span>
   );
 }
 

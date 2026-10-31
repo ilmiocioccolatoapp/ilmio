@@ -46,6 +46,30 @@ export const CategoriesIcon = ({ size = 20, className = '', ...props }) => (
   </svg>
 );
 
+export const StoreIcon = ({ size = 20, className = '', ...props }) => (
+  <svg width={size} height={size} aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+    <path d="M3 10h18l-1.5-6h-15z" />
+    <path d="M5 10v10h14V10" />
+    <path d="M9 20v-6h6v6" />
+    <path d="M3 10a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0" />
+  </svg>
+);
+
+export const MapPinIcon = ({ size = 16, className = '', ...props }) => (
+  <svg width={size} height={size} aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+    <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0z" />
+    <circle cx="12" cy="10" r="2.5" />
+  </svg>
+);
+
+export const CoffeeCupIcon = ({ size = 40, className = '', ...props }) => (
+  <svg width={size} height={size} aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+    <path d="M4 8h13v7a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" />
+    <path d="M17 10h1a3 3 0 1 1 0 6h-2" />
+    <path d="M7 3v2M11 3v2M15 3v2M3 22h17" />
+  </svg>
+);
+
 export const SettingsIcon = ({ size = 20, className = '', ...props }) => (
   <svg width={size} height={size} aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
     <circle cx="12" cy="12" r="3" />

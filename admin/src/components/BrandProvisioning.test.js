@@ -67,7 +67,7 @@ test('adding a brand does not ask for or send an owner organization', async () =
     timezone: 'Asia/Dubai',
     status: 'active'
   });
-  await flush(() => button('+ Add brand').click());
+  await flush(() => button('Add brand').click());
   const dialog = element.querySelector('[role="dialog"]');
   expect(dialog.textContent).not.toContain('Organization');
   const name = dialog.querySelector('input');
@@ -98,7 +98,7 @@ test('brand deletion asks for confirmation before removing the brand', async () 
   const original = window.confirm;
   window.confirm = jest.fn(() => true);
   try {
-    const deleteButton = [...element.querySelectorAll('.brand-card')][0].querySelectorAll('button')[1];
+    const deleteButton = element.querySelector('.brand-card [aria-label="Delete Il Mio Cioccolato"]');
     await flush(() => deleteButton.click());
     expect(platformService.remove).toHaveBeenCalledWith('/brands/brand-1');
   } finally {

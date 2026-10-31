@@ -7,7 +7,7 @@ import StoreMenu from './StoreMenu';
 const sections = [
   ['menu', 'Menu'],
   ['categories', 'Categories'],
-  ['devices', 'Device management'],
+  ['devices', 'Devices'],
   ['tablet', 'Tablet login']
 ];
 const onlineWindowMs = 10 * 60 * 1000;
@@ -21,7 +21,6 @@ export default function SuperAdminStoreWorkspace({
   onEditProduct
 }) {
   const [section, setSection] = useState('menu');
-  const [menuView, setMenuView] = useState('items');
   const [brandId, setBrandId] = useState(
     store.assignments.find(assignment => assignment.status === 'active')?.brand.id || ''
   );
@@ -152,7 +151,6 @@ export default function SuperAdminStoreWorkspace({
             <label className="store-brand-select">Brand menu
               <select value={brandId} onChange={event => {
                 setBrandId(event.target.value);
-                setMenuView('items');
               }}>
                 {availableAssignments.map(assignment => (
                   <option key={assignment.id} value={assignment.brand.id}>{assignment.brand.name}</option>
@@ -181,21 +179,18 @@ export default function SuperAdminStoreWorkspace({
               <p className="management-help">
                 Menu items and categories are shared by this brand’s stores. Prices, availability, and publishing below are specific to {store.name}.
               </p>
-              <div className="store-workspace-tabs store-menu-tabs" aria-label="Menu tools">
-                <button type="button" className={menuView === 'items' ? 'active' : ''} onClick={() => setMenuView('items')}>Menu items</button>
-                <button type="button" className={menuView === 'branch' ? 'active' : ''} onClick={() => setMenuView('branch')}>Store availability & publishing</button>
-              </div>
-              {menuView === 'items'
-                ? <ProductList onEdit={onEditProduct} />
-                : <StoreMenu
-                    key={`${store.id}:${brandId}`}
-                    brand={selectedBrand}
-                    storeId={store.id}
-                    assignments={assignments}
-                    onSelectStore={() => {}}
-                    branchScoped
-                    onBack={() => setMenuView('items')}
-                  />}
+              <ProductList onEdit={onEditProduct} />
+              <section className="store-menu-availability">
+                <h2 className="section-title">Store availability &amp; publishing</h2>
+                <StoreMenu
+                  key={`${store.id}:${brandId}`}
+                  brand={selectedBrand}
+                  storeId={store.id}
+                  assignments={assignments}
+                  onSelectStore={() => {}}
+                  branchScoped
+                />
+              </section>
             </>
           )}
         </section>
