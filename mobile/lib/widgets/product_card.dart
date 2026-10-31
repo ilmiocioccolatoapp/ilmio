@@ -124,13 +124,23 @@ class ProductCard extends StatelessWidget {
                                 ).withValues(alpha: 0.5),
                               ),
                             ),
-                            child: PriceText(
-                              product.price,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (product.sizes.isNotEmpty) ...[
+                                  const Text('From ',
+                                      style: TextStyle(fontSize: 11)),
+                                ],
+                                PriceText(
+                                  product.startingSize?.price ?? product.price,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           const Spacer(),

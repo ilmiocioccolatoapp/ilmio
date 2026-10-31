@@ -11,13 +11,19 @@ jest.mock('./services/api', () => ({
   authService: { getCurrentUser: jest.fn(), getBootstrap: jest.fn() },
   createCatalogServices: jest.fn(),
   platformService: {get:jest.fn(),post:jest.fn(),put:jest.fn(),remove:jest.fn()},
-  productService: { getAllProducts: jest.fn(), toggleAvailability: jest.fn(), updateProduct: jest.fn(), deleteProduct: jest.fn() },
+  productService: { getAllProducts: jest.fn(), toggleAvailability: jest.fn(), updateProduct: jest.fn(), createProduct: jest.fn(), deleteProduct: jest.fn() },
   categoryService: { getAllCategories: jest.fn() }
 }));
 let root, element, emit;
 const session = { access_token: 'test-token', user: { id: 'admin-1' } };
 const membership = {profileId:'profile-1',orgMemberships:[],brandMemberships:[{brandId:'brand-1',role:'BRAND_ADMIN'}],orgs:[{id:'org-1',name:'Owner'}],brands:[{id:'brand-1',orgId:'org-1',name:'Il Mio',currency:'AED',timezone:'Asia/Dubai'}]};
-const product = { _id: 'cake-1', title: 'Cake', category: 'cakes', price: 'AED 25.00', available: true, createdAt: '2026-01-01' };
+const product = {
+  _id: 'cake-1', title: 'Cake', category: 'cakes', price: 'AED 25.00',
+  image: 'https://example.test/cake.jpg', description: 'Chocolate cake', ingredients: 'Cocoa',
+  sizes: [{ id: 'size-small', name: 'Small', priceAmount: '12.00' }],
+  addOnGroups: [{ id: 'group-shot', name: 'Extra shot', selection: 'multiple', options: [{ id: 'option-shot', name: 'Extra shot', priceAmount: '4.00' }] }],
+  available: true, createdAt: '2026-01-01'
+};
 const flush = async action => { await act(async () => { if (action) action(); }); };
 const button = name => [...element.querySelectorAll('button')].find(b => b.textContent.trim() === name);
 
@@ -44,7 +50,7 @@ afterEach(async () => { await flush(() => root.unmount()); element.remove(); });
 test('tab navigation and acknowledged availability changes require no full-catalog refetch', async () => {
   await flush(() => button('Products').click());
   expect(element.textContent).toContain('Cake');
-  expect(element.querySelector('.product-image-placeholder')).not.toBeNull();
+  expect(element.querySelector('.product-card img').getAttribute('src')).toContain('example.test/cake.jpg');
   expect(element.querySelector('.sidebar-menu button svg')).not.toBeNull();
   productService.toggleAvailability.mockResolvedValue({ data: { ...product, available: false } });
   await flush(() => button('Suspend').click());
@@ -57,6 +63,33 @@ test('tab navigation and acknowledged availability changes require no full-catal
   await flush(() => button('Products').click());
   expect(productService.getAllProducts).toHaveBeenCalledTimes(1);
   expect(categoryService.getAllCategories).toHaveBeenCalledTimes(1);
+});
+
+test('product editor saves drink sizes and priced add-on groups', async () => {
+  await flush(() => button('Products').click());
+  await flush(() => button('Edit').click());
+  expect(element.querySelector('input[aria-label="Size 1 name"]').value).toBe('Small');
+  await flush(() => button('+ Add size').click());
+  const setValue=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
+  const sizeName=element.querySelector('input[aria-label="Size 2 name"]');
+  const sizePrice=element.querySelector('input[aria-label="Size 2 price"]');
+  await flush(()=>{setValue.call(sizeName,'Large');sizeName.dispatchEvent(new Event('input',{bubbles:true}));});
+  await flush(()=>{setValue.call(sizePrice,'18.50');sizePrice.dispatchEvent(new Event('input',{bubbles:true}));});
+  await flush(() => button('+ Milk options').click());
+  const milkPrice=element.querySelector('input[aria-label="Milk options option 2 price"]');
+  await flush(()=>{setValue.call(milkPrice,'2.00');milkPrice.dispatchEvent(new Event('input',{bubbles:true}));});
+  productService.updateProduct.mockResolvedValue({data:{...product}});
+  await flush(() => button('Save draft changes').click());
+  expect(productService.updateProduct).toHaveBeenCalledWith('cake-1',expect.objectContaining({
+    fields:expect.objectContaining({
+      sizes:expect.arrayContaining([expect.objectContaining({name:'Large',priceAmount:'18.50'})]),
+      addOnGroups:expect.arrayContaining([expect.objectContaining({
+        name:'Milk options',
+        selection:'single',
+        options:expect.arrayContaining([expect.objectContaining({name:'Oat milk',priceAmount:'2.00'})])
+      })])
+    })
+  }));
 });
 
 test('repeated sign-in events keep authorized views visible; refresh revalidates in background', async () => {
@@ -336,6 +369,11 @@ test('store cards open menu, categories, and tablet login for the selected store
   expect(element.querySelector('.store-detail-heading h1').textContent).toBe('Main store renamed');
   expect(element.textContent).toContain('Store availability & publishing');
   expect(element.textContent).toContain('Publish to this store');
+  expect(element.textContent).toContain('Size and add-on availability');
+  const sizeAvailable=element.querySelector('.store-option-list input');
+  await flush(()=>sizeAvailable.click());
+  await flush(()=>button('Save option availability').click());
+  expect(platformService.put).toHaveBeenCalledWith('/brands/brand-1/stores/store-1/items/cake-1/override',{unavailableOptionIds:['size-small']});
   expect(button('Menu items')).toBeUndefined();
   await flush(() => button('Devices').click());
   expect(element.textContent).toContain('Front tablet');

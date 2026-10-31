@@ -61,14 +61,58 @@ class ProductDetailsPage extends StatelessWidget {
                   ),
                   if (!product.available) const Chip(label: Text('Sold out')),
                   const SizedBox(height: 18),
-                  PriceText(
-                    product.price,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  if (product.sizes.isEmpty)
+                    PriceText(
+                      product.price,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    )
+                  else ...[
+                    const Text('Sizes & prices',
+                        style: TextStyle(
+                            color: _ink,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    ...product.sizes.map((size) => _priceRow(
+                          size.name,
+                          size.price,
+                          available: size.available,
+                        )),
+                  ],
+                  if (product.addOnGroups.isNotEmpty) ...[
+                    const SizedBox(height: 22),
+                    const Text('Add-ons',
+                        style: TextStyle(
+                            color: _ink,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 10),
+                    ...product.addOnGroups.map((group) => Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                group.name,
+                                style: const TextStyle(
+                                    color: _ink,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 4),
+                              ...group.options.map((option) => _priceRow(
+                                    option.name,
+                                    '+ ${option.price}',
+                                    available: option.available,
+                                  )),
+                            ],
+                          ),
+                        )),
+                  ],
                   const SizedBox(height: 24),
                   Divider(color: _ink.withValues(alpha: 0.12), height: 1),
                   const SizedBox(height: 24),
@@ -127,6 +171,39 @@ class ProductDetailsPage extends StatelessWidget {
               color: _ink.withValues(alpha: 0.72), fontSize: 17, height: 1.6),
         ),
       ],
+    );
+  }
+
+  Widget _priceRow(String name, String price, {required bool available}) {
+    return Opacity(
+      opacity: available ? 1 : 0.48,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                name,
+                style: TextStyle(
+                  color: _ink,
+                  fontSize: 16,
+                  decoration: available ? null : TextDecoration.lineThrough,
+                ),
+              ),
+            ),
+            PriceText(
+              price,
+              style: const TextStyle(
+                  color: _ink, fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            if (!available) ...[
+              const SizedBox(width: 8),
+              const Text('Unavailable',
+                  style: TextStyle(color: _ink, fontSize: 11)),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

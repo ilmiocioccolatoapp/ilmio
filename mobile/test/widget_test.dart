@@ -29,6 +29,41 @@ class GalleryApi extends ApiService {
             ingredients: ['Flour, butter', 'Coffee, milk', 'Cocoa, eggs'][i],
             price: 'AED ${20 + i}',
             available: true,
+            sizes: i == 1
+                ? [
+                    const ProductSize(
+                      id: 'small',
+                      name: 'Small',
+                      price: 'AED 18.00',
+                      amount: 18,
+                      available: true,
+                    ),
+                    const ProductSize(
+                      id: 'large',
+                      name: 'Large',
+                      price: 'AED 24.00',
+                      amount: 24,
+                      available: false,
+                    ),
+                  ]
+                : const [],
+            addOnGroups: i == 1
+                ? [
+                    const ProductAddOnGroup(
+                      id: 'milk',
+                      name: 'Milk options',
+                      selection: 'single',
+                      options: [
+                        ProductAddOn(
+                          id: 'oat',
+                          name: 'Oat milk',
+                          price: 'AED 2.00',
+                          available: false,
+                        ),
+                      ],
+                    ),
+                  ]
+                : const [],
             createdAt: DateTime(2026),
             updatedAt: DateTime(2026),
           ),
@@ -92,7 +127,13 @@ void main() {
     expect(find.text('Latte').hitTestable(), findsOneWidget);
     expect(find.text('Freshly brewed coffee').hitTestable(), findsOneWidget);
     expect(find.text('Coffee, milk').hitTestable(), findsOneWidget);
-    expect(find.text('\u20C3\u00A021').hitTestable(), findsOneWidget);
+    expect(find.text('Sizes & prices').hitTestable(), findsOneWidget);
+    expect(find.text('Small').hitTestable(), findsOneWidget);
+    expect(find.text('Large').hitTestable(), findsOneWidget);
+    expect(find.text('Milk options').hitTestable(), findsOneWidget);
+    expect(find.text('Oat milk').hitTestable(), findsOneWidget);
+    expect(find.text('\u20C3\u00A018.00').hitTestable(), findsOneWidget);
+    expect(find.text('\u20C3\u00A024.00').hitTestable(), findsOneWidget);
     expect(find.text('Description'), findsOneWidget);
     expect(find.text('Ingredients'), findsOneWidget);
     expect(find.byTooltip('Previous product'), findsOneWidget);
@@ -149,7 +190,8 @@ void main() {
     await openMenu(tester);
     await tester.tap(find.byType(ProductCard).first);
     await tester.pump();
-    final previous = find.widgetWithIcon(IconButton, Icons.chevron_left_rounded);
+    final previous =
+        find.widgetWithIcon(IconButton, Icons.chevron_left_rounded);
     final next = find.widgetWithIcon(IconButton, Icons.chevron_right_rounded);
     expect(tester.widget<IconButton>(previous).onPressed, isNull);
     await tester.tap(next);

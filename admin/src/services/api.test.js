@@ -1,5 +1,5 @@
 import axios from 'axios';
-import api from './api';
+import api, { createCatalogServices } from './api';
 import { supabase } from '../supabase';
 
 jest.mock('axios', () => ({
@@ -62,4 +62,28 @@ test('does not retry indefinitely when the refreshed admin session is rejected',
   await expect(responseErrorHandler(error)).rejects.toEqual(error.response.data);
   expect(supabase.auth.refreshSession).not.toHaveBeenCalled();
   expect(client.request).not.toHaveBeenCalled();
+});
+
+test('sends drink sizes and add-on groups with the product catalog request', async () => {
+  const sizes=[{id:'size-small',name:'Small',priceAmount:'12.00'}];
+  const addOnGroups=[{
+    id:'milk-group',
+    name:'Milk options',
+    selection:'single',
+    options:[{id:'oat-milk',name:'Oat milk',priceAmount:'2.00'}]
+  }];
+  api.post=jest.fn().mockResolvedValue({data:{data:{
+    id:'latte-1',name:'Latte',category:{code:'drinks'},priceAmount:'12.00',currency:'AED',sizes,addOnGroups
+  }}});
+  const services=createCatalogServices({id:'brand-1'});
+  const result=await services.productService.createProduct({fields:{
+    title:'Latte',category:'drinks',description:'Coffee',ingredients:'Coffee, milk',
+    price:'AED 12.00',available:true,sizes,addOnGroups
+  },file:null});
+  expect(api.post).toHaveBeenCalledWith('/admin/brands/brand-1/items',expect.objectContaining({
+    sizes,
+    addOnGroups
+  }));
+  expect(result.data.sizes).toEqual(sizes);
+  expect(result.data.addOnGroups).toEqual(addOnGroups);
 });

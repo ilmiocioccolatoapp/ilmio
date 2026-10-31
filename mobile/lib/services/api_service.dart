@@ -27,8 +27,33 @@ class PublishedBrandApi extends ApiService {
                 'price':
                     '${p['currency'] ?? brand['currency']} ${double.parse(p['priceAmount'].toString()).toStringAsFixed(2)}',
                 'available': p['availability'] != 'soldout',
+                'sizes': (p['sizes'] as List? ?? [])
+                    .map((size) => {
+                          ...Map<String, dynamic>.from(size as Map),
+                          'price': _formattedPrice(size['priceAmount'],
+                              p['currency'] ?? brand['currency']),
+                          'amount':
+                              double.parse(size['priceAmount'].toString()),
+                        })
+                    .toList(),
+                'addOnGroups': (p['addOnGroups'] as List? ?? [])
+                    .map((group) => {
+                          ...Map<String, dynamic>.from(group as Map),
+                          'options': (group['options'] as List? ?? [])
+                              .map((option) => {
+                                    ...Map<String, dynamic>.from(option as Map),
+                                    'price': _formattedPrice(
+                                        option['priceAmount'],
+                                        p['currency'] ?? brand['currency']),
+                                  })
+                              .toList(),
+                        })
+                    .toList(),
                 'createdAt': p['createdAt'],
                 'updatedAt': p['updatedAt']
               })))
           .toList();
+
+  static String _formattedPrice(dynamic amount, dynamic currency) =>
+      '${currency ?? 'AED'} ${double.parse(amount.toString()).toStringAsFixed(2)}';
 }

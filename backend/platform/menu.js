@@ -8,7 +8,8 @@ async function resolveMenu(db, assignmentId) {
   const overrides = new Map(a.overrides.map(o => [o.productId,o]));
   return {...brandShape(a.brand),storeBrandId:a.id,categories:categories.map(c=>({id:c.id,code:c.code,name:c.name,icon:c.icon,imageUrl:c.imageUrl,sortOrder:c.sortOrder,items:c.products.map(p=>{
     const o=overrides.get(p.id);
-    return {id:p.id,name:p.name,description:p.description,ingredients:p.ingredients,imageUrl:p.imageUrl,priceAmount:String(o?.priceAmount ?? p.priceAmount),currency:p.currency,availability:o?.isSoldOut ? 'soldout':'available',createdAt:p.createdAt.toISOString(),updatedAt:p.updatedAt.toISOString()};
+    const unavailable=new Set(o?.unavailableOptionIds||[]);
+    return {id:p.id,name:p.name,description:p.description,ingredients:p.ingredients,imageUrl:p.imageUrl,priceAmount:String(o?.priceAmount ?? p.priceAmount),currency:p.currency,availability:o?.isSoldOut ? 'soldout':'available',sizes:(p.sizes||[]).map(size=>({...size,available:!unavailable.has(size.id)})),addOnGroups:(p.addOnGroups||[]).map(group=>({...group,options:group.options.map(option=>({...option,available:!unavailable.has(option.id)}))})),createdAt:p.createdAt.toISOString(),updatedAt:p.updatedAt.toISOString()};
   })}))};
 }
 async function publish(db, actor, brandId, storeIds) {

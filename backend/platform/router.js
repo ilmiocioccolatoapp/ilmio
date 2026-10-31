@@ -9,6 +9,7 @@ const {resolveMenu,publish,publishedMenu}=require('./menu');
 const {audit,lockBrand}=require('./audit');
 const {createProvisioningClients}=require('./provisioning');
 const {measure,timingMiddleware}=require('./timing');
+const {normalizeSizes,normalizeAddOnGroups,normalizeUnavailableOptionIds}=require('./catalog-options');
 const status=value=>{if(!['active','inactive'].includes(value))fail(400,'Status must be active or inactive.');return value;};
 const organizationNameKey=name=>name.trim().replace(/\s+/g,' ').toLocaleLowerCase('en');
 function labelOrganizations(orgs){
@@ -55,7 +56,7 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
    if(!a || a.status!=='active' || a.store.status!=='active' || a.brand.status!=='active' || !a.currentMenu)fail(503,'The original menu has not been published.');
    if(process.env.LEGACY_CATALOG_ENABLED==='false')fail(410,'Update the tablet app to sign in.');
    const categories=a.currentMenu.snapshot.categories||[];
-   const data=categoriesOnly?categories.map(c=>({_id:c.id,dbId:c.id,id:c.code,name:c.name,icon:c.icon,order:c.sortOrder,count:c.items.length})):categories.flatMap(c=>c.items.map(p=>({_id:p.id,dbId:p.id,title:p.name,category:c.code,image:p.imageUrl,description:p.description,ingredients:p.ingredients,price:p.legacyPrice || (p.currency==='EUR'?'€':p.currency+' ')+Number(p.priceAmount).toFixed(2),available:p.availability!=='soldout',createdAt:p.createdAt,updatedAt:p.updatedAt}))).filter(p=>p.available);
+   const data=categoriesOnly?categories.map(c=>({_id:c.id,dbId:c.id,id:c.code,name:c.name,icon:c.icon,order:c.sortOrder,count:c.items.length})):categories.flatMap(c=>c.items.map(p=>({_id:p.id,dbId:p.id,title:p.name,category:c.code,image:p.imageUrl,description:p.description,ingredients:p.ingredients,price:p.legacyPrice || (p.currency==='EUR'?'€':p.currency+' ')+Number(p.priceAmount).toFixed(2),available:p.availability!=='soldout',sizes:p.sizes||[],addOnGroups:p.addOnGroups||[],createdAt:p.createdAt,updatedAt:p.updatedAt}))).filter(p=>p.available);
    res.set('Cache-Control','no-store').json({success:true,count:data.length,data});
  }
  router.get('/categories',wrap((req,res)=>legacy(req,res,true)));
@@ -300,12 +301,17 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
    if(body.imagePublicId!==undefined){if(body.imagePublicId!==null){const asset=await tx.asset.findFirst({where:{brandId:b.id,publicId:body.imagePublicId}});if(!asset && body.imagePublicId!==current?.imagePublicId)fail(400,'Image must be uploaded for this brand.');}d.imagePublicId=body.imagePublicId;}
    if(body.isActive!==undefined)d.isActive=bool(body.isActive,'Active');
    if(body.sortOrder!==undefined)d.sortOrder=order(body.sortOrder);
+   const optionIds=new Set();
+   const sizes=normalizeSizes(body.sizes??current?.sizes??[],optionIds);
+   const addOnGroups=normalizeAddOnGroups(body.addOnGroups??current?.addOnGroups??[],optionIds);
+   if(!current || body.sizes!==undefined)d.sizes=sizes;
+   if(!current || body.addOnGroups!==undefined)d.addOnGroups=addOnGroups;
    return d;
  }
  admin.post('/brands/:brandId/items',wrap(async(req,res)=>res.status(201).json({success:true,data:await brandWrite(req,async(tx,b)=>{const p=await tx.product.create({data:{...await productData(tx,b,req.body),brandId:b.id},include:{category:true}});await record(tx,req,b,'Product',p.id,'create');return p;})})));
  admin.put('/brands/:brandId/items/:id',wrap(async(req,res)=>json(res)(await brandWrite(req,async(tx,b)=>{const p=await tx.product.findFirst({where:{id:req.params.id,brandId:b.id}});if(!p)fail(404,'Product not found.');const data=await productData(tx,b,req.body,p);const result=await tx.product.update({where:{id:p.id},data,include:{category:true}});await record(tx,req,b,'Product',p.id,'update',{fields:Object.keys(data)});return result;}))));
  admin.delete('/brands/:brandId/items/:id',wrap(async(req,res)=>{await brandWrite(req,async(tx,b)=>{const p=await tx.product.findFirst({where:{id:req.params.id,brandId:b.id}});if(!p)fail(404,'Product not found.');await tx.product.delete({where:{id:p.id}});await record(tx,req,b,'Product',p.id,'delete');});res.status(204).end();}));
- admin.put('/brands/:brandId/stores/:storeId/items/:itemId/override',wrap(async(req,res)=>json(res)(await brandWrite(req,async(tx,b)=>{const a=await assignment(req,tx);const p=await tx.product.findFirst({where:{id:req.params.itemId,brandId:b.id}});if(!p)fail(404,'Product not found.');const data={};if(req.body.priceAmount!==undefined)data.priceAmount=money(req.body.priceAmount,true);if(req.body.isSoldOut!==undefined)data.isSoldOut=req.body.isSoldOut===null?null:bool(req.body.isSoldOut,'Sold out');const result=await tx.productStoreOverride.upsert({where:{storeBrandId_productId:{storeBrandId:a.id,productId:p.id}},create:{storeBrandId:a.id,productId:p.id,brandId:b.id,...data},update:data});await record(tx,req,b,'ProductStoreOverride',result.id,'update',{...data,storeId:a.storeId});return result;},req.params.storeId))));
+ admin.put('/brands/:brandId/stores/:storeId/items/:itemId/override',wrap(async(req,res)=>json(res)(await brandWrite(req,async(tx,b)=>{const a=await assignment(req,tx);const p=await tx.product.findFirst({where:{id:req.params.itemId,brandId:b.id}});if(!p)fail(404,'Product not found.');const data={};if(req.body.priceAmount!==undefined)data.priceAmount=money(req.body.priceAmount,true);if(req.body.isSoldOut!==undefined)data.isSoldOut=req.body.isSoldOut===null?null:bool(req.body.isSoldOut,'Sold out');if(req.body.unavailableOptionIds!==undefined){const optionIds=new Set([...(p.sizes||[]).map(size=>size.id),...(p.addOnGroups||[]).flatMap(group=>group.options.map(option=>option.id))]);data.unavailableOptionIds=normalizeUnavailableOptionIds(req.body.unavailableOptionIds,optionIds);}const result=await tx.productStoreOverride.upsert({where:{storeBrandId_productId:{storeBrandId:a.id,productId:p.id}},create:{storeBrandId:a.id,productId:p.id,brandId:b.id,...data},update:data});await record(tx,req,b,'ProductStoreOverride',result.id,'update',{...data,storeId:a.storeId});return result;},req.params.storeId))));
  admin.get('/brands/:brandId/stores/:storeId/preview',wrap(async(req,res)=>{const a=await assignment(req);json(res)(await resolveMenu(db,a.id));}));
  admin.post('/brands/:brandId/stores/:storeId/publish',wrap(async(req,res)=>{await assignment(req);json(res)(await publish(db,req.admin,req.params.brandId,[req.params.storeId]));}));
  admin.post('/brands/:brandId/publish',wrap(async(req,res)=>{await brand(req);const ids=req.body.storeIds;if(ids!==undefined && (!Array.isArray(ids)||!ids.length||ids.length>100||ids.some(id=>typeof id!=='string')))fail(400,'Select one or more stores.');json(res)(await publish(db,req.admin,req.params.brandId,ids));}));

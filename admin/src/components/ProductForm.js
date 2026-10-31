@@ -14,6 +14,18 @@ const formatPrice = (price) => {
   const formattedAmount = `${whole}.${fraction.padEnd(2, '0')}`;
   return currency === '€' ? `€${formattedAmount}` : `${currency} ${formattedAmount}`;
 };
+const newOptionId = () => `option-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+const validAmount = value => /^\d{1,8}(?:\.\d{0,2})?$/.test(String(value));
+const initialGroup = name => {
+  const milk = name.toLowerCase().includes('milk');
+  const optionNames = milk ? ['Whole milk', 'Oat milk', 'Almond milk'] : name.toLowerCase().includes('syrup') ? ['Vanilla', 'Caramel', 'Hazelnut'] : ['Extra shot'];
+  return {
+    id: newOptionId(),
+    name,
+    selection: milk ? 'single' : 'multiple',
+    options: optionNames.map(optionName => ({ id: newOptionId(), name: optionName, priceAmount: '0.00' }))
+  };
+};
 
 const ProductForm = ({ product, onSuccess, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -22,7 +34,9 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
     description: '',
     ingredients: '',
     price: 'AED 0.00',
-    available: true
+    available: true,
+    sizes: [],
+    addOnGroups: []
   });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
@@ -46,7 +60,9 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
         description: product.description,
         ingredients: product.ingredients,
         price: product.price,
-        available: product.available
+        available: product.available,
+        sizes: Array.isArray(product.sizes) ? product.sizes : [],
+        addOnGroups: Array.isArray(product.addOnGroups) ? product.addOnGroups : []
       });
       setImagePreview(product.image);
     }
@@ -78,6 +94,13 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
     if (!/^\d+(?:\.\d{0,2})?$/.test(getPriceAmount(formData.price))) {
       newErrors.price = 'Enter a price with up to 2 decimal places';
     }
+    if (formData.sizes.some(size => !size.name.trim() || !validAmount(size.priceAmount))) {
+      newErrors.sizes = 'Enter a name and a valid price for every size.';
+    }
+    if (formData.addOnGroups.some(group => !group.name.trim() || !group.options.length
+      || group.options.some(option => !option.name.trim() || !validAmount(option.priceAmount)))) {
+      newErrors.addOnGroups = 'Each add-on group and option needs a name, and every option needs a valid price.';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -108,6 +131,15 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
       setImageFile(file);
       if (errors.image) setErrors(prev => ({ ...prev, image: '' }));
     }
+  };
+
+  const updateSize = (index, field, value) => {
+    setFormData(previous => ({ ...previous, sizes: previous.sizes.map((size, itemIndex) => itemIndex === index ? { ...size, [field]: value } : size) }));
+    setErrors(previous => ({ ...previous, sizes: '' }));
+  };
+  const updateGroup = (groupIndex, update) => {
+    setFormData(previous => ({ ...previous, addOnGroups: previous.addOnGroups.map((group, index) => index === groupIndex ? update(group) : group) }));
+    setErrors(previous => ({ ...previous, addOnGroups: '' }));
   };
 
   const handleSubmit = async (e) => {
@@ -247,6 +279,72 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
           </div>
           {errors.price && <span className="error-message">{errors.price}</span>}
         </div>
+
+        <section className="product-options-editor" aria-labelledby="product-sizes-heading">
+          <div className="product-options-heading">
+            <div>
+              <h3 id="product-sizes-heading">Sizes &amp; prices</h3>
+              <p>For drinks, add each size with its price. Customers can view these on the tablet.</p>
+            </div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFormData(previous => ({ ...previous, sizes: [...previous.sizes, { id: newOptionId(), name: '', priceAmount: '' }] }))}>+ Add size</button>
+          </div>
+          {formData.sizes.map((size, index) => (
+            <div className="product-option-row" key={size.id}>
+              <label>Size
+                <input aria-label={`Size ${index + 1} name`} value={size.name} maxLength="60" placeholder="Small, Medium, Large" onChange={event => updateSize(index, 'name', event.target.value)} />
+              </label>
+              <label>Price ({brand?.currency || 'AED'})
+                <input aria-label={`Size ${index + 1} price`} inputMode="decimal" value={size.priceAmount} placeholder="0.00" onChange={event => updateSize(index, 'priceAmount', event.target.value)} />
+              </label>
+              <button type="button" className="icon-danger-button" aria-label={`Remove size ${index + 1}`} onClick={() => setFormData(previous => ({ ...previous, sizes: previous.sizes.filter((_, itemIndex) => itemIndex !== index) }))}>×</button>
+            </div>
+          ))}
+          {errors.sizes && <span className="error-message" role="alert">{errors.sizes}</span>}
+        </section>
+
+        <section className="product-options-editor" aria-labelledby="product-addons-heading">
+          <div className="product-options-heading">
+            <div>
+              <h3 id="product-addons-heading">Add-ons &amp; extra prices</h3>
+              <p>Set extra charges for shots, milk options, syrups, or your own group.</p>
+            </div>
+          </div>
+          <div className="product-option-presets">
+            {['Extra shot', 'Milk options', 'Syrups'].map(name => (
+              <button key={name} type="button" className="btn btn-ghost btn-sm" onClick={() => setFormData(previous => ({ ...previous, addOnGroups: [...previous.addOnGroups, initialGroup(name)] }))}>+ {name}</button>
+            ))}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFormData(previous => ({ ...previous, addOnGroups: [...previous.addOnGroups, initialGroup('Other add-ons')] }))}>+ Other group</button>
+          </div>
+          {formData.addOnGroups.map((group, groupIndex) => (
+            <fieldset className="product-addon-group" key={group.id}>
+              <div className="product-addon-heading">
+                <label>Group name
+                  <input aria-label={`Add-on group ${groupIndex + 1} name`} value={group.name} maxLength="60" onChange={event => updateGroup(groupIndex, current => ({ ...current, name: event.target.value }))} />
+                </label>
+                <label>Selection
+                  <select aria-label={`Add-on group ${groupIndex + 1} selection`} value={group.selection} onChange={event => updateGroup(groupIndex, current => ({ ...current, selection: event.target.value }))}>
+                    <option value="single">Choose one</option>
+                    <option value="multiple">Choose multiple</option>
+                  </select>
+                </label>
+                <button type="button" className="icon-danger-button" aria-label={`Remove add-on group ${groupIndex + 1}`} onClick={() => setFormData(previous => ({ ...previous, addOnGroups: previous.addOnGroups.filter((_, index) => index !== groupIndex) }))}>×</button>
+              </div>
+              {group.options.map((option, optionIndex) => (
+                <div className="product-option-row" key={option.id}>
+                  <label>Option
+                    <input aria-label={`${group.name || `Group ${groupIndex + 1}`} option ${optionIndex + 1} name`} value={option.name} maxLength="60" onChange={event => updateGroup(groupIndex, current => ({ ...current, options: current.options.map((item, index) => index === optionIndex ? { ...item, name: event.target.value } : item) }))} />
+                  </label>
+                  <label>Extra ({brand?.currency || 'AED'})
+                    <input aria-label={`${group.name || `Group ${groupIndex + 1}`} option ${optionIndex + 1} price`} inputMode="decimal" value={option.priceAmount} placeholder="0.00" onChange={event => updateGroup(groupIndex, current => ({ ...current, options: current.options.map((item, index) => index === optionIndex ? { ...item, priceAmount: event.target.value } : item) }))} />
+                  </label>
+                  <button type="button" className="icon-danger-button" aria-label={`Remove ${option.name || `option ${optionIndex + 1}`}`} onClick={() => updateGroup(groupIndex, current => ({ ...current, options: current.options.filter((_, index) => index !== optionIndex) }))}>×</button>
+                </div>
+              ))}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => updateGroup(groupIndex, current => ({ ...current, options: [...current.options, { id: newOptionId(), name: '', priceAmount: '' }] }))}>+ Add option</button>
+            </fieldset>
+          ))}
+          {errors.addOnGroups && <span className="error-message" role="alert">{errors.addOnGroups}</span>}
+        </section>
 
         <div className="form-group checkbox">
           <label>

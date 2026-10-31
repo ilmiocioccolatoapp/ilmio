@@ -164,6 +164,8 @@ model Product {
   isActive           Boolean                @default(true) @map("available")
   sortOrder          Int                    @default(0)
   metadata           Json?
+  sizes              Json                   @default("[]")
+  addOnGroups        Json                   @default("[]")
   createdAt          DateTime               @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime               @default(now()) @updatedAt @db.Timestamptz(3)
   brand              Brand                  @relation(fields: [brandId], references: [id], onDelete: Restrict)
@@ -182,6 +184,7 @@ model ProductStoreOverride {
   brandId      String
   priceAmount  Decimal?   @db.Decimal(10, 2)
   isSoldOut    Boolean?
+  unavailableOptionIds Json @default("[]")
   createdAt    DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
   storeBrand   StoreBrand @relation(fields: [storeBrandId, brandId], references: [id, brandId], onDelete: Cascade)

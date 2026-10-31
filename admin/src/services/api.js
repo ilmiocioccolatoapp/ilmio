@@ -47,7 +47,8 @@ export function createCatalogServices(brand){
  }
  async function payload({fields,file}){
   const data={name:fields.title,categoryCode:fields.category,description:fields.description,ingredients:fields.ingredients,
-   priceAmount:String(fields.price).replace(/^(?:[A-Z]{3}|€|\u20c3)\s*/,''),isActive:fields.available};
+   priceAmount:String(fields.price).replace(/^(?:[A-Z]{3}|€|\u20c3)\s*/,''),isActive:fields.available,
+   sizes:fields.sizes||[],addOnGroups:fields.addOnGroups||[]};
   if(file)Object.assign(data,await upload(file));
   return data;
  }
