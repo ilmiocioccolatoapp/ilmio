@@ -24,6 +24,8 @@ export default function SuperAdminStoreWorkspace({
   const [brandId, setBrandId] = useState(
     store.assignments.find(assignment => assignment.status === 'active')?.brand.id || ''
   );
+  const [storeName, setStoreName] = useState(store.name);
+  const [editingStoreName, setEditingStoreName] = useState(false);
   const [password, setPassword] = useState('');
   const [storeId, setStoreId] = useState(store.loginCode);
   const [busy, setBusy] = useState(false);
@@ -92,6 +94,22 @@ export default function SuperAdminStoreWorkspace({
       setMessage('Tablet Store ID updated.');
     });
   };
+  const saveStoreName = event => {
+    event.preventDefault();
+    const name = storeName.trim();
+    if (!name) {
+      setMessage('Enter a store name.');
+      return;
+    }
+    run(async () => {
+      const updated = await platformService.put(`/orgs/${store.orgId}/stores/${store.id}`, { name });
+      const savedName = updated?.name || name;
+      setStoreName(savedName);
+      setEditingStoreName(false);
+      onStoreUpdated({ ...store, ...updated, name: savedName, ownerName: store.ownerName });
+      setMessage('Store name updated.');
+    });
+  };
   const resetPassword = event => {
     event.preventDefault();
     run(async () => {
@@ -125,7 +143,33 @@ export default function SuperAdminStoreWorkspace({
       <button className="btn btn-ghost branch-back" onClick={onBack}>← All stores</button>
       <div className="store-detail-heading">
         <div>
-          <h1 className="section-title">{store.name}</h1>
+          {editingStoreName ? (
+            <form className="store-name-form" onSubmit={saveStoreName}>
+              <label className="visually-hidden" htmlFor="store-name-input">Store name</label>
+              <input
+                id="store-name-input"
+                aria-label="Store name"
+                autoFocus
+                maxLength={500}
+                required
+                value={storeName}
+                onChange={event => setStoreName(event.target.value)}
+              />
+              <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>Save name</button>
+              <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => {
+                setStoreName(store.name);
+                setEditingStoreName(false);
+              }}>Cancel</button>
+            </form>
+          ) : (
+            <div className="store-name-heading">
+              <h1 className="section-title">{store.name}</h1>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => {
+                setStoreName(store.name);
+                setEditingStoreName(true);
+              }}>Edit name</button>
+            </div>
+          )}
           <p>Store ID: <strong>{store.loginCode}</strong></p>
         </div>
         <span className="branch-card-status">{store.status}</span>

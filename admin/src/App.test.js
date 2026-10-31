@@ -327,6 +327,13 @@ test('store cards open menu, categories, and tablet login for the selected store
   expect(button('Categories')).toBeDefined();
   expect(button('Devices')).toBeDefined();
   expect(button('Tablet login')).toBeDefined();
+  await flush(() => button('Edit name').click());
+  const storeNameInput=element.querySelector('input[aria-label="Store name"]');
+  const setInputValue=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
+  await flush(()=>{setInputValue.call(storeNameInput,'Main store renamed');storeNameInput.dispatchEvent(new Event('input',{bubbles:true}));});
+  await flush(()=>button('Save name').click());
+  expect(platformService.put).toHaveBeenCalledWith('/orgs/org-1/stores/store-1',{name:'Main store renamed'});
+  expect(element.querySelector('.store-detail-heading h1').textContent).toBe('Main store renamed');
   expect(element.textContent).toContain('Store availability & publishing');
   expect(element.textContent).toContain('Publish to this store');
   expect(button('Menu items')).toBeUndefined();
