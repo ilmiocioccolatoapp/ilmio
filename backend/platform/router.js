@@ -193,6 +193,28 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
    const result=await db.$transaction(async tx=>{const s=await tx.store.create({data:{orgId:req.params.orgId,name:text(req.body.name,'Store name'),slug:code(req.body.slug,'Store slug'),loginCode:code(req.body.loginCode,'Store login code'),passwordHash,timezone:timezone(req.body.timezone||'Asia/Dubai'),address:req.body.address?text(req.body.address,'Address',500):null},select:storeSelect});await audit(tx,req.admin,{orgId:s.orgId,storeId:s.id},'Store',s.id,'create');return {...s,passwordConfigured:true};});res.status(201).json({success:true,data:result});
  }));
  async function ownedStore(req){await org(req);const s=await db.store.findFirst({where:{id:req.params.storeId,orgId:req.params.orgId}});if(!s)fail(404,'Store not found.');return s;}
+ admin.delete('/orgs/:orgId/stores/:storeId',wrap(async(req,res)=>{
+   const store=await ownedStore(req);
+   await db.$transaction(async tx=>{
+     const locked=await tx.$queryRaw`SELECT "id" FROM "Store" WHERE "id" = ${store.id} FOR UPDATE`;
+     if(!locked.length)fail(404,'Store not found.');
+     const assignments=await tx.storeBrand.findMany({
+       where:{storeId:store.id},
+       select:{id:true,_count:{select:{menus:true}}}
+     });
+     if(assignments.some(assignment=>assignment._count.menus>0)){
+       fail(409,'This store has published menu history and cannot be permanently deleted. Deactivate the store to preserve that history.');
+     }
+     const devices=await tx.storeSession.deleteMany({where:{storeId:store.id}});
+     await tx.storeBrand.deleteMany({where:{storeId:store.id}});
+     await tx.store.delete({where:{id:store.id}});
+     await audit(tx,req.admin,{orgId:store.orgId,storeId:store.id},'Store',store.id,'delete',{
+       removedAssignments:assignments.length,
+       removedDeviceSessions:devices.count
+     });
+   });
+   res.status(204).end();
+ }));
  admin.put('/orgs/:orgId/stores/:storeId',wrap(async(req,res)=>{const s=await ownedStore(req);const data={};for(const f of ['name','slug','loginCode','timezone','address','phone','status'])if(req.body[f]!==undefined)data[f]=f==='status'?status(req.body[f]):f==='timezone'?timezone(req.body[f]):['slug','loginCode'].includes(f)?code(req.body[f],f):text(req.body[f],f,500);if(data.status && data.status!==s.status)data.tokenVersion={increment:1};data.revision={increment:1};json(res)(await db.$transaction(async tx=>{const result=await tx.store.update({where:{id:s.id},data,select:storeSelect});await audit(tx,req.admin,{orgId:s.orgId,storeId:s.id},'Store',s.id,'update',{fields:Object.keys(data)});return result;}));}));
  admin.post('/orgs/:orgId/stores/:storeId/password',wrap(async(req,res)=>{const s=await ownedStore(req),passwordHash=await hash(password(req.body.newPassword));await db.$transaction(async tx=>{await tx.store.update({where:{id:s.id},data:{passwordHash,tokenVersion:{increment:1},failedLogins:0,lockedUntil:null}});await audit(tx,req.admin,{orgId:s.orgId,storeId:s.id},'Store',s.id,'reset-password');});res.status(204).end();}));
  admin.post('/orgs/:orgId/stores/:storeId/revoke-devices',wrap(async(req,res)=>{const s=await ownedStore(req);await db.$transaction(async tx=>{await tx.store.update({where:{id:s.id},data:{tokenVersion:{increment:1}}});await tx.storeSession.updateMany({where:{storeId:s.id,revokedAt:null},data:{revokedAt:new Date()}});await audit(tx,req.admin,{orgId:s.orgId,storeId:s.id},'Store',s.id,'revoke-devices');});res.status(204).end();}));

@@ -272,7 +272,7 @@ test('store cards open menu, categories, and tablet login for the selected store
   expect(element.querySelectorAll('.store-card')).toHaveLength(2);
   expect(element.textContent).toContain('Main store');
   expect(element.textContent).toContain('Second store');
-  await flush(() => element.querySelector('.store-card').click());
+  await flush(() => element.querySelector('.store-card-main').click());
   expect(element.textContent).toContain('Main store');
   expect(button('Menu')).toBeDefined();
   expect(button('Categories')).toBeDefined();
@@ -294,4 +294,27 @@ test('store cards open menu, categories, and tablet login for the selected store
   expect(element.querySelector('input[type="password"]').minLength).toBe(6);
   await flush(() => button('← All stores').click());
   expect(element.querySelector('.store-card')).not.toBeNull();
+});
+
+test('store cards require confirmation and report when published menu history blocks deletion', async () => {
+  const platformUser={...membership,isPlatformAdmin:true,orgs:[{id:'org-1',name:'Owner'}],id:'admin-1',email:'platform@example.test'};
+  authService.getCurrentUser.mockResolvedValue(platformUser);
+  platformService.get.mockImplementation(path => Promise.resolve(path==='/stores' ? [{
+    id:'store-1',orgId:'org-1',ownerName:'Owner',name:'Main store',loginCode:'main-store',status:'active',
+    assignments:[{id:'assignment-1',brand:{id:'brand-1',name:'Il Mio'},status:'active'}]
+  }] : []));
+  const originalConfirm = window.confirm;
+  window.confirm = jest.fn(() => true);
+  try {
+    await flush(() => emit('TOKEN_REFRESHED',{...session,access_token:'platform-store-delete-token'}));
+    await flush(() => button('Store management').click());
+    platformService.remove.mockRejectedValue({error:'This store has published menu history and cannot be permanently deleted.'});
+    await flush(() => element.querySelector('.store-card-delete').click());
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('Main store'));
+    expect(platformService.remove).toHaveBeenCalledWith('/orgs/org-1/stores/store-1');
+    expect(element.querySelector('[role="alert"]').textContent).toContain('published menu history');
+    expect(element.textContent).toContain('Main store');
+  } finally {
+    window.confirm = originalConfirm;
+  }
 });

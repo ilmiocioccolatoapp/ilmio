@@ -117,6 +117,39 @@ test('store create and reset accept six-character passwords and reject shorter v
  assert.equal((await call('/admin/orgs/org-a/stores/'+storeId+'/password',{method:'POST',body:{newPassword:'12345'}})).status,400);
  assert.equal((await call('/admin/orgs/org-a/stores/'+storeId+'/password',{method:'POST',body:{newPassword:'123456'}})).status,204);
 });
+test('store deletion removes only stores without published menu history',async()=>{
+ const removable=await db.store.create({data:{
+  id:'store-removable',orgId:'org-a',name:'Unpublished store',slug:'unpublished-store',
+  loginCode:'unpublished-store',passwordHash:await hash('tablet-password-123')
+ }});
+ const assignment=await db.storeBrand.create({data:{storeId:removable.id,brandId:'brand-a',approvedBy:uid.super}});
+ await db.storeSession.create({data:{
+  id:'session-removable',storeId:removable.id,tokenVersion:0,refreshHash:'test-hash',
+  expiresAt:new Date(Date.now()+86400000)
+ }});
+ const deleted=await call('/admin/orgs/org-a/stores/'+removable.id,{method:'DELETE'});
+ assert.equal(deleted.status,204);
+ assert.equal(await db.store.findUnique({where:{id:removable.id}}),null);
+ assert.equal(await db.storeBrand.findUnique({where:{id:assignment.id}}),null);
+ assert.equal(await db.storeSession.findUnique({where:{id:'session-removable'}}),null);
+ const audit=await db.auditLog.findFirst({where:{action:'delete',storeId:removable.id}});
+ assert.deepEqual(audit.diff,{removedAssignments:1,removedDeviceSessions:1});
+
+ const protectedStore=await db.store.create({data:{
+  id:'store-protected',orgId:'org-a',name:'Published store',slug:'published-store',
+  loginCode:'published-store',passwordHash:await hash('tablet-password-123')
+ }});
+ const protectedAssignment=await db.storeBrand.create({data:{storeId:protectedStore.id,brandId:'brand-a',approvedBy:uid.super,nextVersion:1}});
+ await db.menuVersion.create({data:{
+  id:'protected-menu-version',storeBrandId:protectedAssignment.id,version:1,snapshot:{categories:[]}
+ }});
+ const rejected=await call('/admin/orgs/org-a/stores/'+protectedStore.id,{method:'DELETE'});
+ assert.equal(rejected.status,409);
+ assert.match(rejected.body.error,/published menu history/);
+ assert.ok(await db.store.findUnique({where:{id:protectedStore.id}}));
+ assert.ok(await db.storeBrand.findUnique({where:{id:protectedAssignment.id}}));
+ assert.ok(await db.menuVersion.findUnique({where:{id:'protected-menu-version'}}));
+});
 let ca,cb,pa,pb;
 test('two independent owners can reuse category codes; APIs and DB reject cross-brand attaches',async()=>{
  ca=await ok('/admin/brands/brand-a/categories',{actor:'brandA',method:'POST',body:{code:'drinks',name:'A drinks'}});

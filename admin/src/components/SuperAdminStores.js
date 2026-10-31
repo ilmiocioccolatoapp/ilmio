@@ -7,12 +7,31 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
   const [error, setError] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [deletingStoreId, setDeletingStoreId] = useState('');
+  const [storeActionError, setStoreActionError] = useState('');
+  const [storeActionMessage, setStoreActionMessage] = useState('');
 
   const loadStores = async () => {
     setError('');
     const nextStores = await platformService.get('/stores');
     setStores(nextStores);
     return nextStores;
+  };
+
+  const deleteStore = async store => {
+    if (!window.confirm(`Permanently delete "${store.name}" and sign out its tablets? Stores with published menu history cannot be deleted.`)) return;
+    setDeletingStoreId(store.id);
+    setStoreActionError('');
+    setStoreActionMessage('');
+    try {
+      await platformService.remove(`/orgs/${store.orgId}/stores/${store.id}`);
+      setStores(current => current.filter(item => item.id !== store.id));
+      setStoreActionMessage(`${store.name} was deleted.`);
+    } catch (deleteError) {
+      setStoreActionError(deleteError.error || deleteError.message || `Could not delete ${store.name}.`);
+    } finally {
+      setDeletingStoreId('');
+    }
   };
 
   useEffect(() => {
@@ -47,6 +66,8 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
           + Create store
         </button>
       </div>
+      {storeActionError && <p role="alert">{storeActionError}</p>}
+      {storeActionMessage && <p role="status">{storeActionMessage}</p>}
 
       {loading ? (
         <p role="status">Loading stores…</p>
@@ -59,23 +80,35 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
       ) : stores.length ? (
         <div className="store-card-grid" aria-label="All stores">
           {stores.map(store => (
-            <button
-              type="button"
-              className="store-card"
-              key={store.id}
-              onClick={() => onOpenStore(store)}
-            >
-              <span className="store-card-heading">
-                <span className="store-card-title">{store.name}</span>
-                <span className={`store-card-status ${store.status === 'active' ? 'is-active' : ''}`}>{store.status}</span>
-              </span>
-              <span className="store-card-owner">{store.ownerDisplayName || store.ownerName}</span>
-              <span className="store-card-id">Tablet Store ID <strong>{store.loginCode}</strong></span>
-              <span className="store-card-brands">{store.assignments.length
-                ? store.assignments.map(assignment => assignment.brand.name).join(', ')
-                : 'No menu assigned'}</span>
-              <span className="store-card-open">Manage store <span aria-hidden="true">→</span></span>
-            </button>
+            <article className="store-card" key={store.id}>
+              <button
+                type="button"
+                className="store-card-main"
+                onClick={() => onOpenStore(store)}
+                aria-label={`Manage ${store.name}`}
+              >
+                <span className="store-card-heading">
+                  <span className="store-card-title">{store.name}</span>
+                  <span className={`store-card-status ${store.status === 'active' ? 'is-active' : ''}`}>{store.status}</span>
+                </span>
+                <span className="store-card-owner">{store.ownerDisplayName || store.ownerName}</span>
+                <span className="store-card-id">Tablet Store ID <strong>{store.loginCode}</strong></span>
+                <span className="store-card-brands">{store.assignments.length
+                  ? store.assignments.map(assignment => assignment.brand.name).join(', ')
+                  : 'No menu assigned'}</span>
+                <span className="store-card-open">Manage store <span aria-hidden="true">→</span></span>
+              </button>
+              <div className="store-card-footer">
+                <button
+                  type="button"
+                  className="btn btn-ghost-danger btn-sm store-card-delete"
+                  onClick={() => deleteStore(store)}
+                  disabled={Boolean(deletingStoreId)}
+                >
+                  {deletingStoreId === store.id ? 'Deleting…' : 'Delete store'}
+                </button>
+              </div>
+            </article>
           ))}
         </div>
       ) : (
