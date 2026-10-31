@@ -280,7 +280,7 @@ aside, .sidebar {
 .content, .main-content {
   max-width: 1500px;
   width: 100%;
-  margin: auto;
+  margin: 0 auto;
   padding: 38px 42px 60px;
   min-width: 0;
 }
