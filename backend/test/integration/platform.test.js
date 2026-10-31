@@ -111,6 +111,14 @@ test('platform dashboard reports recently active tablet devices and offline stor
  assert.equal(dashboard.onlineWindowMinutes,10);
  assert.equal(dashboard.stores.find(store=>store.id==='downtown').devices[0].deviceLabel,'Front counter');
  assert.deepEqual(dashboard.stores.find(store=>store.id==='marina').devices,[]);
+ const bootstrap=await ok('/admin/bootstrap');
+ assert.equal(bootstrap.user.isPlatformAdmin,true);
+ assert.equal(bootstrap.dashboard.onlineWindowMinutes,10);
+ assert.equal(bootstrap.dashboard.stores.find(store=>store.id==='downtown').devices[0].deviceLabel,'Front counter');
+ assert.equal(Object.hasOwn(bootstrap.dashboard.stores[0],'passwordHash'),false);
+ const ownerBootstrap=await ok('/admin/bootstrap',{actor:'ownerA'});
+ assert.equal(ownerBootstrap.user.isPlatformAdmin,false);
+ assert.equal(ownerBootstrap.dashboard,null);
  assert.equal((await call('/admin/dashboard',{actor:'ownerA'})).status,403);
 });
 test('store create and reset accept six-character passwords and reject shorter values',async()=>{

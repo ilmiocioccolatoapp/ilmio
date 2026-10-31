@@ -29,7 +29,10 @@ api.interceptors.response.use(response=>response,async error=>{
  }
  return Promise.reject(error.response?.data || {error:error.message});
 });
-export const authService={getCurrentUser:async()=> (await api.get('/admin/me')).data.data};
+export const authService={
+ getCurrentUser:async()=> (await api.get('/admin/me')).data.data,
+ getBootstrap:async()=> (await api.get('/admin/bootstrap')).data.data
+};
 const formatted=(amount,currency)=>(currency==='EUR'?'€':currency+' ')+Number(amount).toFixed(2);
 const mapCategory=c=>({...c,_id:c.id,dbId:c.id,id:c.code,order:c.sortOrder,count:c._count?.products??0});
 const mapProduct=p=>({...p,_id:p.id,dbId:p.id,title:p.name,category:p.category?.code||p.legacyCategoryCode,image:p.imageUrl,price:formatted(p.priceAmount,p.currency),available:p.isActive});

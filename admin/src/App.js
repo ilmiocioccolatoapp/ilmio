@@ -19,16 +19,22 @@ import {supabase,supabaseConfigured} from './supabase';
 import './styles/App.css';
 const emptyServices={productService:{getAllProducts:async()=>({data:[]})},categoryService:{getAllCategories:async()=>[]}};
 function App(){
- const [session,setSession]=useState(null),[authLoading,setAuthLoading]=useState(true),[adminUser,setAdminUser]=useState(null),[authorizationError,setAuthorizationError]=useState(''),[passwordRecovery,setPasswordRecovery]=useState(()=>window.location.pathname.replace(/\/+$/,'').endsWith('/set-password'));
+ const [session,setSession]=useState(null),[authLoading,setAuthLoading]=useState(true),[adminUser,setAdminUser]=useState(null),[authorizationError,setAuthorizationError]=useState(''),[platformDashboard,setPlatformDashboard]=useState(null),[passwordRecovery,setPasswordRecovery]=useState(()=>window.location.pathname.replace(/\/+$/,'').endsWith('/set-password'));
  const [activeTab,setActiveTab]=useState('dashboard'),[orgId,setOrgId]=useState(''),[brandId,setBrandId]=useState(''),[storeId,setStoreId]=useState(''),[selectedStoreId,setSelectedStoreId]=useState(''),[selectedStore,setSelectedStore]=useState(null),[branchMenu,setBranchMenu]=useState(false),[assignments,setAssignments]=useState([]);
  const [showForm,setShowForm]=useState(false),[editingProduct,setEditingProduct]=useState(null);
+ const verifiedUserId=useRef(null);
  const userId=session?.user?.id,accessToken=session?.access_token;
  const authorized=adminUser && adminUser.id===userId;
  useEffect(()=>{if(!supabase){setAuthLoading(false);return;}const {data:{subscription}}=supabase.auth.onAuthStateChange((event,next)=>{if(event==='PASSWORD_RECOVERY'||window.location.pathname.replace(/\/+$/,'').endsWith('/set-password'))setPasswordRecovery(true);if(event==='SIGNED_OUT')setPasswordRecovery(false);setSession(next);setAuthLoading(false);});return ()=>subscription.unsubscribe();},[]);
  useEffect(()=>{
-  if(!accessToken){setAdminUser(null);return;}
+  if(!accessToken){setAdminUser(null);setPlatformDashboard(null);verifiedUserId.current=null;return;}
   let active=true;setAdminUser(old=>old?.id===userId?old:null);setAuthorizationError('');
-  authService.getCurrentUser().then(user=>{if(active)setAdminUser(user);}).catch(error=>{if(active){setAdminUser(null);setAuthorizationError(error.error||error.message||'Could not verify access.');}});
+  const isNewUser=verifiedUserId.current!==userId;
+  if(isNewUser)setPlatformDashboard(null);
+  const request=isNewUser
+   ?authService.getBootstrap().then(result=>{if(active){setAdminUser(result.user);setPlatformDashboard(result.dashboard);verifiedUserId.current=result.user.id;}})
+   :authService.getCurrentUser().then(user=>{if(active)setAdminUser(user);});
+  request.catch(error=>{if(active){setAdminUser(null);setAuthorizationError(error.error||error.message||'Could not verify access.');}});
   return ()=>{active=false;};
  },[accessToken,userId]);
  useEffect(()=>{setShowForm(false);setEditingProduct(null);setActiveTab('dashboard');setOrgId('');setBrandId('');setStoreId('');setSelectedStoreId('');setSelectedStore(null);setBranchMenu(false);},[userId]);
@@ -68,7 +74,7 @@ function App(){
  const tabs=adminUser.isPlatformAdmin?[['dashboard','Dashboard'],['stores','Store management'],['brands','Brand management']]:[...(canCatalog?[['dashboard','Overview'],['products','Products'],['categories','Categories'],['store-menu','Store menus'],['settings','Settings'],['analytics','Analytics']]:[]),...(canManage?[['management','Stores & owners']]:[])];
  let content;
  if(!canCatalog&&!canManage)content=<div className="page-container"><h2>Access unavailable</h2><p>Your account has no active workspace permissions.</p></div>;
- else if(adminUser.isPlatformAdmin&&visibleTab==='dashboard')content=<PlatformDashboard onOpenStore={openStore}/>;
+ else if(adminUser.isPlatformAdmin&&visibleTab==='dashboard')content=<PlatformDashboard initialDashboard={platformDashboard} onOpenStore={openStore}/>;
  else if(adminUser.isPlatformAdmin&&visibleTab==='brands')content=<BrandProvisioning brands={brands} onChanged={reload}/>;
  else if(adminUser.isPlatformAdmin&&visibleTab==='stores'&&!selectedStore)content=<SuperAdminStores brands={brands} onOpenStore={store=>openStore(store)}/>;
  else if(adminUser.isPlatformAdmin&&visibleTab==='stores'&&selectedStore)content=<SuperAdminStoreWorkspace store={selectedStore} brands={brands} assignments={assignments} onStoreUpdated={setSelectedStore} onBack={()=>setSelectedStore(null)} onEditProduct={edit}/>;

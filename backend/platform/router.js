@@ -63,23 +63,23 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
  router.all(['/products','/products/:id','/products/:id/toggle','/categories/:id'],wrap(adminAuth),(req,res)=>res.status(410).json({success:false,error:'Use the brand-scoped administration API.'}));
  router.use('/admin',admin);
  admin.use(wrap(adminAuth));
- async function me(req,res){
-   const brands=await db.brand.findMany({where:brandWhere(req.admin),orderBy:{name:'asc'}});
-   const orgIds=[...new Set([...req.admin.orgMemberships.map(m=>m.orgId),...brands.map(b=>b.orgId)])];
-   const orgs=labelOrganizations(await db.organization.findMany({where:req.admin.isPlatformAdmin?{}:{id:{in:orgIds},status:'active'},orderBy:[{name:'asc'},{id:'asc'}]}));
-   res.json({success:true,data:{...req.adminUser,name:req.admin.name,isPlatformAdmin:req.admin.isPlatformAdmin,orgMemberships:req.admin.orgMemberships,brandMemberships:req.admin.brandMemberships,orgs,brands}});
+ async function adminData(req){
+   const brandQuery=db.brand.findMany({where:brandWhere(req.admin),orderBy:{name:'asc'}});
+   let brands,orgs;
+   if(req.admin.isPlatformAdmin){
+     [brands,orgs]=await Promise.all([
+       brandQuery,
+       db.organization.findMany({orderBy:[{name:'asc'},{id:'asc'}]})
+     ]);
+   }else{
+     brands=await brandQuery;
+     const orgIds=[...new Set([...req.admin.orgMemberships.map(m=>m.orgId),...brands.map(b=>b.orgId)])];
+     orgs=await db.organization.findMany({where:{id:{in:orgIds},status:'active'},orderBy:[{name:'asc'},{id:'asc'}]});
+   }
+   orgs=labelOrganizations(orgs);
+   return {...req.adminUser,name:req.admin.name,isPlatformAdmin:req.admin.isPlatformAdmin,orgMemberships:req.admin.orgMemberships,brandMemberships:req.admin.brandMemberships,orgs,brands};
  }
- admin.get('/me',wrap(me));
- router.get('/auth/me',wrap(adminAuth),wrap(me));
- admin.get('/orgs',wrap(async(req,res)=>{const orgIds=req.admin.orgMemberships.map(m=>m.orgId);json(res)(labelOrganizations(await db.organization.findMany({where:req.admin.isPlatformAdmin?{}:{id:{in:orgIds},status:'active'},orderBy:[{name:'asc'},{id:'asc'}]})));}));
- admin.get('/stores',wrap(async(req,res)=>{
-   platformAdminScope(req.admin);
-   const stores=await db.store.findMany({select:{...storeSelect,passwordHash:true,org:{select:{id:true,name:true}},assignments:{include:{brand:{select:{id:true,name:true,orgId:true}}}}},orderBy:{name:'asc'}});
-   const orgLabels=new Map(labelOrganizations([...new Map(stores.map(store=>[store.org.id,store.org])).values()]).map(org=>[org.id,org.displayName]));
-   json(res)(stores.map(({passwordHash,org,...store})=>({...store,ownerName:org.name,ownerDisplayName:orgLabels.get(org.id)||org.name,passwordConfigured:passwordHash?.startsWith('$argon2id$')??false})));
- }));
- admin.get('/dashboard',wrap(async(req,res)=>{
-   platformAdminScope(req.admin);
+ async function dashboardData(){
    const now=new Date(),onlineSince=new Date(now.getTime()-10*60*1000);
    const stores=await db.store.findMany({
      select:{
@@ -91,8 +91,26 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
      orderBy:{name:'asc'}
    });
    const orgLabels=new Map(labelOrganizations([...new Map(stores.map(store=>[store.org.id,store.org])).values()]).map(org=>[org.id,org.displayName]));
-   json(res)({asOf:now.toISOString(),onlineWindowMinutes:10,stores:stores.map(({org,sessions,passwordHash,...store})=>({...store,ownerName:orgLabels.get(org.id)||org.name,passwordConfigured:passwordHash?.startsWith('$argon2id$')??false,devices:sessions}))});
+   return {asOf:now.toISOString(),onlineWindowMinutes:10,stores:stores.map(({org,sessions,passwordHash,...store})=>({...store,ownerName:orgLabels.get(org.id)||org.name,passwordConfigured:passwordHash?.startsWith('$argon2id$')??false,devices:sessions}))};
+ }
+ async function me(req,res){json(res)(await adminData(req));}
+ admin.get('/me',wrap(me));
+ admin.get('/bootstrap',wrap(async(req,res)=>{
+   const [user,dashboard]=await Promise.all([
+     adminData(req),
+     req.admin.isPlatformAdmin?dashboardData():Promise.resolve(null)
+   ]);
+   json(res)({user,dashboard});
  }));
+ router.get('/auth/me',wrap(adminAuth),wrap(me));
+ admin.get('/orgs',wrap(async(req,res)=>{const orgIds=req.admin.orgMemberships.map(m=>m.orgId);json(res)(labelOrganizations(await db.organization.findMany({where:req.admin.isPlatformAdmin?{}:{id:{in:orgIds},status:'active'},orderBy:[{name:'asc'},{id:'asc'}]})));}));
+ admin.get('/stores',wrap(async(req,res)=>{
+   platformAdminScope(req.admin);
+   const stores=await db.store.findMany({select:{...storeSelect,passwordHash:true,org:{select:{id:true,name:true}},assignments:{include:{brand:{select:{id:true,name:true,orgId:true}}}}},orderBy:{name:'asc'}});
+   const orgLabels=new Map(labelOrganizations([...new Map(stores.map(store=>[store.org.id,store.org])).values()]).map(org=>[org.id,org.displayName]));
+   json(res)(stores.map(({passwordHash,org,...store})=>({...store,ownerName:org.name,ownerDisplayName:orgLabels.get(org.id)||org.name,passwordConfigured:passwordHash?.startsWith('$argon2id$')??false})));
+ }));
+ admin.get('/dashboard',wrap(async(req,res)=>{platformAdminScope(req.admin);json(res)(await dashboardData());}));
  admin.post('/orgs',wrap(async(req,res)=>{platformAdminScope(req.admin);const name=text(req.body.name,'Organization name');const data=await db.$transaction(async tx=>{const key=organizationNameKey(name);await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`organization-name:${key}`}))`;const existing=await tx.$queryRaw`SELECT "id" FROM "Organization" WHERE lower(regexp_replace(trim("name"), '[[:space:]]+', ' ', 'g')) = ${key} LIMIT 1`;if(existing.length)fail(409,'An organization with this name already exists. Select it or merge the duplicate organizations first.');const o=await tx.organization.create({data:{name}});await audit(tx,req.admin,{orgId:o.id},'Organization',o.id,'create');return o;});res.status(201).json({success:true,data:{...data,displayName:data.name}});}));
  admin.put('/orgs/:orgId',wrap(async(req,res)=>{await org(req);const data=await db.$transaction(async tx=>{const o=await tx.organization.update({where:{id:req.params.orgId},data:{...(req.body.name!==undefined?{name:text(req.body.name,'Organization name')}:{}),...(req.body.status!==undefined?{status:status(req.body.status)}:{})}});if(req.body.status!==undefined){await tx.store.updateMany({where:{OR:[{orgId:o.id},{assignments:{some:{brand:{orgId:o.id}}}}]},data:{revision:{increment:1}}});}await audit(tx,req.admin,{orgId:o.id},'Organization',o.id,'update',{status:o.status});return o;});json(res)(data);}));
  admin.get('/brands',wrap(async(req,res)=>json(res)(await db.brand.findMany({where:brandWhere(req.admin),orderBy:{name:'asc'}}))));

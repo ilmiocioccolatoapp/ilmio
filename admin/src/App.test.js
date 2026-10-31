@@ -8,7 +8,7 @@ jest.mock('./supabase', () => ({ supabaseConfigured: true, supabase: { auth: {
   onAuthStateChange: jest.fn(), signOut: jest.fn()
 } } }));
 jest.mock('./services/api', () => ({
-  authService: { getCurrentUser: jest.fn() },
+  authService: { getCurrentUser: jest.fn(), getBootstrap: jest.fn() },
   createCatalogServices: jest.fn(),
   platformService: {get:jest.fn(),post:jest.fn(),put:jest.fn(),remove:jest.fn()},
   productService: { getAllProducts: jest.fn(), toggleAvailability: jest.fn(), updateProduct: jest.fn(), deleteProduct: jest.fn() },
@@ -32,6 +32,7 @@ beforeEach(async () => {
     return { data: { subscription: { unsubscribe() {} } } };
   });
   authService.getCurrentUser.mockResolvedValue({...membership, id: 'admin-1', email: 'admin@example.test' });
+  authService.getBootstrap.mockResolvedValue({user:{...membership,id:'admin-1',email:'admin@example.test'},dashboard:null});
   createCatalogServices.mockReturnValue({productService,categoryService});
   platformService.get.mockResolvedValue([]);
   productService.getAllProducts.mockResolvedValue({ data: [product] });
@@ -60,7 +61,8 @@ test('repeated sign-in events keep authorized views visible; refresh revalidates
   await flush(() => button('Products').click());
   await flush(() => emit('SIGNED_IN', { ...session }));
   expect(element.querySelector('.products-grid')).not.toBeNull();
-  expect(authService.getCurrentUser).toHaveBeenCalledTimes(1);
+  expect(authService.getBootstrap).toHaveBeenCalledTimes(1);
+  expect(authService.getCurrentUser).not.toHaveBeenCalled();
   let finish;
   authService.getCurrentUser.mockReturnValue(new Promise(resolve => { finish = resolve; }));
   await flush(() => emit('TOKEN_REFRESHED', { ...session, access_token: 'new-test-token' }));
@@ -105,12 +107,12 @@ test('confirmed deletion updates the catalog and category counts without a reloa
 
 test('switching accounts hides the previous catalog until the new account is verified', async () => {
   let finish;
-  authService.getCurrentUser.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  authService.getBootstrap.mockReturnValue(new Promise(resolve => { finish = resolve; }));
   await flush(() => emit('SIGNED_IN', { access_token: 'other-token', user: { id: 'admin-2' } }));
   expect(element.querySelector('.workspace')).toBeNull();
   expect(element.textContent).toContain('Checking your sign-in');
   productService.getAllProducts.mockResolvedValue({ data: [] });
-  await flush(() => finish({...membership, id: 'admin-2', email: 'other@example.test' }));
+  await flush(() => finish({user:{...membership, id: 'admin-2', email: 'other@example.test'},dashboard:null}));
   expect(element.textContent).toContain('other@example.test');
   expect([...element.querySelectorAll('.stat-value')].map(e => e.textContent)).toEqual(['0', '0', '0']);
   expect(productService.getAllProducts).toHaveBeenCalledTimes(2);
@@ -211,6 +213,17 @@ test('Platform Admin has a dashboard and simple store and brand management secti
   expect(element.querySelector('.brand-card')).not.toBeNull();
   expect(element.textContent).toContain('Coffee Beans World');
   expect(button('+ Add brand')).toBeDefined();
+});
+
+test('Platform Admin renders bootstrap dashboard without a second dashboard request', async () => {
+  const platformUser={...membership,isPlatformAdmin:true,orgs:[{id:'org-1',name:'Owner'}],brands:[],id:'admin-2',email:'platform@example.test'};
+  const initialDashboard={asOf:new Date().toISOString(),onlineWindowMinutes:10,stores:[
+    {id:'store-1',orgId:'org-1',name:'Main store',status:'active',devices:[]}
+  ]};
+  authService.getBootstrap.mockResolvedValue({user:platformUser,dashboard:initialDashboard});
+  await flush(() => emit('SIGNED_IN',{access_token:'platform-initial-token',user:{id:'admin-2'}}));
+  expect(element.textContent).toContain('Main store');
+  expect(platformService.get).not.toHaveBeenCalledWith('/dashboard');
 });
 
 test('Platform Admin keeps Stores top-level and can create a store from its directory', async () => {

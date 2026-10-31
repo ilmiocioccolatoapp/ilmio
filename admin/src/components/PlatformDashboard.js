@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { platformService } from '../services/api';
 
-export default function PlatformDashboard({ onOpenStore }) {
-  const [dashboard, setDashboard] = useState(null);
+export default function PlatformDashboard({ initialDashboard, onOpenStore }) {
+  const [dashboard, setDashboard] = useState(initialDashboard);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialDashboard);
 
   const load = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -19,10 +19,15 @@ export default function PlatformDashboard({ onOpenStore }) {
   }, []);
 
   useEffect(() => {
-    load(true);
+    if (initialDashboard) {
+      setDashboard(initialDashboard);
+      setLoading(false);
+    } else {
+      load(true);
+    }
     const timer = window.setInterval(() => load(), 60_000);
     return () => window.clearInterval(timer);
-  }, [load]);
+  }, [initialDashboard, load]);
 
   const stores = dashboard?.stores || [];
   const onlineDevices = stores.flatMap(store => store.devices.map(device => ({ ...device, store })));
