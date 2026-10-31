@@ -1,9 +1,10 @@
 const {test,before,after}=require('node:test');
 const assert=require('node:assert/strict');
+const crypto=require('node:crypto');
 const jwt=require('jsonwebtoken');
 const {PrismaClient}=require('@prisma/client');
 const {createApp}=require('../../app');
-const {hash}=require('../../platform/storeAuth');
+const {hash,qrTokenHash}=require('../../platform/storeAuth');
 const {duplicateGroups,mergeBrands}=require('../../scripts/reconcile-duplicate-brands');
 const {mergeOrganizations}=require('../../scripts/reconcile-duplicate-organizations');
 const db=new PrismaClient();
@@ -137,7 +138,25 @@ test('store create and reset accept six-character passwords and reject shorter v
  const storeId=created.body.data.id;
  assert.equal(created.body.data.passwordConfigured,true);
  assert.equal((await call('/admin/orgs/org-a/stores/'+storeId+'/password',{method:'POST',body:{newPassword:'12345'}})).status,400);
- assert.equal((await call('/admin/orgs/org-a/stores/'+storeId+'/password',{method:'POST',body:{newPassword:'123456'}})).status,204);
+ const reset=await call('/admin/orgs/org-a/stores/'+storeId+'/password',{method:'POST',body:{newPassword:'123456'}});
+ assert.equal(reset.status,200);
+ assert.match(reset.body.data.qrDataUrl,/^data:image\/png;base64,/);
+ assert.ok(Date.parse(reset.body.data.qrExpiresAt)>Date.now());
+ assert.equal(await db.storeLoginQrToken.count({where:{storeId}}),1);
+});
+test('one-time store QR login creates a session and cannot be reused',async()=>{
+ const token=crypto.randomBytes(32).toString('base64url');
+ const store=await db.store.findUnique({where:{id:'downtown'}});
+ await db.storeLoginQrToken.create({data:{
+  storeId:store.id,tokenHash:qrTokenHash(token),expiresAt:new Date(Date.now()+5*60*1000)
+ }});
+ const login=await call('/auth/store/qr-login',{actor:null,method:'POST',body:{loginCode:store.loginCode,token}});
+ assert.equal(login.status,200);
+ assert.equal(login.body.store.id,store.id);
+ assert.equal(login.body.store.orgId,store.orgId);
+ assert.equal(await db.storeLoginQrToken.count({where:{storeId:store.id,consumedAt:{not:null}}}),1);
+ const replay=await call('/auth/store/qr-login',{actor:null,method:'POST',body:{loginCode:store.loginCode,token}});
+ assert.equal(replay.status,401);
 });
 test('store deletion removes only stores without published menu history',async()=>{
  const removable=await db.store.create({data:{

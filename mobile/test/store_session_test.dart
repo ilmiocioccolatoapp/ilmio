@@ -127,6 +127,34 @@ void main() {
     expect(controller.menu, isNotNull);
     controller.dispose();
   });
+  test('one-time store QR creates an authenticated session without a password',
+      () async {
+    final qrToken = List.filled(43, 'A').join();
+    final controller = StoreSessionController(
+        vault: MemoryVault(),
+        cache: MemoryCache(),
+        client: MockClient((req) async {
+          if (req.url.path.endsWith('/qr-login')) {
+            final body = jsonDecode(req.body);
+            expect(body['loginCode'], 'cbw-alforsan');
+            expect(body['token'], qrToken);
+            expect(body.containsKey('password'), isFalse);
+            return response(loginResponse('cbw-alforsan'));
+          }
+          if (req.method == 'GET') return response(envelope('cbw-alforsan'));
+          throw StateError('Unexpected QR login request: ${req.url.path}');
+        }));
+
+    await controller.loginWithQr(
+      'cbw-alforsan',
+      qrToken,
+    );
+
+    expect(controller.signedIn, isTrue);
+    expect(controller.storeId, 'cbw-alforsan');
+    expect(controller.error, isNull);
+    controller.dispose();
+  });
   test('password confirmation verifies credentials without creating a session',
       () async {
     final requests = <String>[];

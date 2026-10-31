@@ -10,6 +10,9 @@ const verify=async (encoded,value)=>{try{return await argon2.verify(encoded,valu
 function key(){const k=process.env.STORE_JWT_SECRET;if(!k || Buffer.byteLength(k)<32)fail(503,'Store authentication is not configured.');return k;}
 function sign(store,session){return jwt.sign({realm:'store',storeId:store.id,orgId:store.orgId,sessionId:session.id,tokenVersion:store.tokenVersion},key(),{algorithm:'HS256',audience:'store',issuer:'ilmio-store',expiresIn:'15m'});}
 const newRefresh=id=>id+'.'+crypto.randomBytes(48).toString('base64url');
+const qrTokenHash=value=>crypto.createHash('sha256').update(value).digest('hex');
+function validLoginCode(value){return typeof value==='string'&&/^[a-z0-9][a-z0-9-]{2,39}$/.test(value);}
+function validQrToken(value){return typeof value==='string'&&/^[A-Za-z0-9_-]{43}$/.test(value);}
 async function lock(db,value){await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${value}))`;}
 async function authenticate(db,body,ip,createSession) {
   key();
@@ -48,6 +51,27 @@ async function authenticate(db,body,ip,createSession) {
 }
 const login=(db,body,ip)=>authenticate(db,body,ip,true);
 const verifyPassword=(db,body,ip)=>authenticate(db,body,ip,false);
+async function loginWithQr(db,body){
+  key();
+  const identifier=body?.loginCode;
+  const token=body?.token;
+  if(!validLoginCode(identifier)||!validQrToken(token))fail(401,'Invalid or expired store login QR.');
+  const now=new Date(),hashValue=qrTokenHash(token);
+  const result=await db.$transaction(async tx=>{
+    await tx.$queryRaw`SELECT "id" FROM "StoreLoginQrToken" WHERE "tokenHash" = ${hashValue} FOR UPDATE`;
+    const qr=await tx.storeLoginQrToken.findUnique({where:{tokenHash:hashValue},include:{store:{include:{org:true}}}});
+    if(!qr||qr.store.loginCode!==identifier||qr.consumedAt||qr.expiresAt<=now)fail(401,'Invalid or expired store login QR.');
+    const consumed=await tx.storeLoginQrToken.updateMany({where:{id:qr.id,consumedAt:null,expiresAt:{gt:now}},data:{consumedAt:now}});
+    if(consumed.count!==1)fail(401,'Invalid or expired store login QR.');
+    if(qr.store.status!=='active'||qr.store.org.status!=='active')return {invalid:true};
+    await tx.store.update({where:{id:qr.store.id},data:{lastLoginAt:now,failedLogins:0,lockedUntil:null}});
+    const id=crypto.randomUUID(),refreshToken=newRefresh(id);
+    const session=await tx.storeSession.create({data:{id,storeId:qr.store.id,tokenVersion:qr.store.tokenVersion,refreshHash:await hash(refreshToken),expiresAt:new Date(now.getTime()+30*86400000),deviceLabel:'Store tablet'}});
+    return {accessToken:sign(qr.store,session),refreshToken,store:{id:qr.store.id,name:qr.store.name,orgId:qr.store.orgId},loginCode:identifier};
+  },{timeout:20000});
+  if(result.invalid)fail(401,'Invalid or expired store login QR.');
+  return result;
+}
 async function refresh(db,value) {
   key();
   if(typeof value!=='string' || value.length>512 || !/^[a-f0-9-]{36}\.[A-Za-z0-9_-]{64}$/.test(value))fail(401,'Invalid store session.');
@@ -77,4 +101,4 @@ function createStoreAuth(db) {
   };
 }
 function password(value){if(typeof value!=='string'||value.length<6||value.length>1024)fail(400,'Password must contain 6–1024 characters.');return value;}
-module.exports={hash,verify,password,login,verifyPassword,refresh,createStoreAuth};
+module.exports={hash,verify,password,login,verifyPassword,loginWithQr,qrTokenHash,refresh,createStoreAuth};

@@ -72,10 +72,6 @@ export const platformService={
  get:async path=>(await api.get('/admin'+path)).data.data,
  post:async(path,data)=>(await api.post('/admin'+path,data)).data?.data,
  put:async(path,data)=>(await api.put('/admin'+path,data)).data?.data,
- remove:async path=>api.delete('/admin'+path),
- qr:async path=>{
-  const blob=(await api.get('/admin'+path+'/login-qr',{responseType:'blob'})).data;
-  return URL.createObjectURL(blob);
- }
+ remove:async path=>api.delete('/admin'+path)
 };
 export default api;

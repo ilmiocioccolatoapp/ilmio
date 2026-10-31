@@ -387,8 +387,19 @@ test('store cards open menu, categories, and tablet login for the selected store
   expect(element.textContent).toContain('Tablet login details');
   expect(element.textContent).toContain('main-store');
   expect(element.textContent).toContain('Set — hidden for security');
-  expect(button('Show tablet login QR')).toBeDefined();
+  expect(button('Show tablet login QR')).toBeUndefined();
   expect(element.querySelector('input[type="password"]').minLength).toBe(6);
+  const passwordInput=element.querySelector('input[type="password"]');
+  const setPasswordValue=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
+  await flush(()=>{setPasswordValue.call(passwordInput,'new-tablet-password');passwordInput.dispatchEvent(new Event('input',{bubbles:true}));});
+  platformService.post.mockResolvedValueOnce({
+    qrDataUrl:'data:image/png;base64,one-time-qr',
+    qrExpiresAt:new Date(Date.now()+5*60*1000).toISOString()
+  });
+  await flush(() => button('Save new password').click());
+  expect(platformService.post).toHaveBeenCalledWith('/orgs/org-1/stores/store-1/password',{newPassword:'new-tablet-password'});
+  expect(element.querySelector('.store-login-qr img').getAttribute('src')).toBe('data:image/png;base64,one-time-qr');
+  expect(element.textContent).toContain('This QR grants one-time tablet access.');
   await flush(() => button('← All stores').click());
   expect(element.querySelector('.store-card')).not.toBeNull();
 });

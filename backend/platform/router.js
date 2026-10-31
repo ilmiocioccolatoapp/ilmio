@@ -4,7 +4,7 @@ const qrcode=require('qrcode');
 const cloudinary=require('cloudinary').v2;
 const {wrap,fail,text,code,money,bool,order,timezone,imageUrl}=require('./http');
 const {createAdminAuth,brandOpsScope,brandCatalogScope,platformAdminScope,brandWhere}=require('./auth');
-const {hash,password,login,verifyPassword,refresh,createStoreAuth}=require('./storeAuth');
+const {hash,password,login,verifyPassword,loginWithQr,qrTokenHash,refresh,createStoreAuth}=require('./storeAuth');
 const {resolveMenu,publish,publishedMenu}=require('./menu');
 const {audit,lockBrand}=require('./audit');
 const {createProvisioningClients}=require('./provisioning');
@@ -34,6 +34,7 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
  const brandWrite=async(req,fn,affectedStoreId)=>{const b=await brand(req);return db.$transaction(async tx=>{await lockBrand(tx,b.id);const result=await fn(tx,b);await tx.storeBrand.updateMany({where:{brandId:b.id,...(affectedStoreId?{storeId:affectedStoreId}:{})},data:{unpublishedChanges:true}});return result;});};
  const record=async(tx,req,b,entity,id,action,diff)=>audit(tx,req.admin,{orgId:b.orgId,brandId:b.id},entity,id,action,diff);
  router.post('/auth/store/login',wrap(async(req,res)=>{res.set('Cache-Control','no-store');const result=await login(db,req.body,req.ip);const menu=await publishedMenu(db,result.store.id);res.json({...result,brands:menu.brands.map(({id,name,slug,logoUrl,currency,menuVersion})=>({id,name,slug,logoUrl,currency,menuVersion}))});}));
+ router.post('/auth/store/qr-login',wrap(async(req,res)=>{res.set('Cache-Control','no-store');const result=await loginWithQr(db,req.body);const menu=await publishedMenu(db,result.store.id);res.json({...result,brands:menu.brands.map(({id,name,slug,logoUrl,currency,menuVersion})=>({id,name,slug,logoUrl,currency,menuVersion}))});}));
  router.post('/auth/store/verify-password',wrap(async(req,res)=>{res.set('Cache-Control','no-store');await verifyPassword(db,req.body,req.ip);res.status(204).end();}));
  router.post('/auth/store/refresh',wrap(async(req,res)=>{res.set('Cache-Control','no-store');res.json(await refresh(db,req.body.refreshToken));}));
  router.post('/auth/store/logout',wrap(storeAuth),wrap(async(req,res)=>{await db.storeSession.update({where:{id:req.storeSession.id},data:{revokedAt:new Date()}});res.status(204).end();}));
@@ -267,11 +268,24 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
    res.status(204).end();
  }));
  admin.put('/orgs/:orgId/stores/:storeId',wrap(async(req,res)=>{const s=await ownedStore(req);const data={};for(const f of ['name','slug','loginCode','timezone','address','phone','status'])if(req.body[f]!==undefined)data[f]=f==='status'?status(req.body[f]):f==='timezone'?timezone(req.body[f]):['slug','loginCode'].includes(f)?code(req.body[f],f):text(req.body[f],f,500);if(data.status && data.status!==s.status)data.tokenVersion={increment:1};data.revision={increment:1};json(res)(await db.$transaction(async tx=>{const result=await tx.store.update({where:{id:s.id},data,select:storeSelect});await audit(tx,req.admin,{orgId:s.orgId,storeId:s.id},'Store',s.id,'update',{fields:Object.keys(data)});return result;}));}));
- admin.post('/orgs/:orgId/stores/:storeId/password',wrap(async(req,res)=>{const s=await ownedStore(req),passwordHash=await hash(password(req.body.newPassword));await db.$transaction(async tx=>{await tx.store.update({where:{id:s.id},data:{passwordHash,tokenVersion:{increment:1},failedLogins:0,lockedUntil:null}});await audit(tx,req.admin,{orgId:s.orgId,storeId:s.id},'Store',s.id,'reset-password');});res.status(204).end();}));
+ admin.post('/orgs/:orgId/stores/:storeId/password',wrap(async(req,res)=>{
+   const s=await ownedStore(req),passwordHash=await hash(password(req.body.newPassword));
+   const token=crypto.randomBytes(32).toString('base64url'),tokenHash=qrTokenHash(token),expiresAt=new Date(Date.now()+5*60*1000);
+   const result=await db.$transaction(async tx=>{
+     const [locked]=await tx.$queryRaw`SELECT "loginCode" FROM "Store" WHERE "id" = ${s.id} FOR UPDATE`;
+     if(!locked)fail(404,'Store not found.');
+     const qrDataUrl=await qrcode.toDataURL(JSON.stringify({id:locked.loginCode,token}),{width:400,margin:2,errorCorrectionLevel:'M'});
+     await tx.storeLoginQrToken.deleteMany({where:{storeId:s.id,consumedAt:null}});
+     await tx.store.update({where:{id:s.id},data:{passwordHash,tokenVersion:{increment:1},failedLogins:0,lockedUntil:null}});
+     await tx.storeLoginQrToken.create({data:{storeId:s.id,tokenHash,expiresAt}});
+     await audit(tx,req.admin,{orgId:s.orgId,storeId:s.id},'Store',s.id,'reset-password');
+     return {qrDataUrl,qrExpiresAt:expiresAt.toISOString()};
+   });
+   res.json({success:true,data:result});
+ }));
  admin.post('/orgs/:orgId/stores/:storeId/revoke-devices',wrap(async(req,res)=>{const s=await ownedStore(req);await db.$transaction(async tx=>{await tx.store.update({where:{id:s.id},data:{tokenVersion:{increment:1}}});await tx.storeSession.updateMany({where:{storeId:s.id,revokedAt:null},data:{revokedAt:new Date()}});await audit(tx,req.admin,{orgId:s.orgId,storeId:s.id},'Store',s.id,'revoke-devices');});res.status(204).end();}));
  admin.get('/orgs/:orgId/stores/:storeId/sessions',wrap(async(req,res)=>{const s=await ownedStore(req);json(res)(await db.storeSession.findMany({where:{storeId:s.id},select:{id:true,deviceLabel:true,expiresAt:true,revokedAt:true,lastSeenAt:true,createdAt:true},orderBy:{createdAt:'desc'}}));}));
  admin.post('/orgs/:orgId/stores/:storeId/sessions/:sessionId/revoke',wrap(async(req,res)=>{const s=await ownedStore(req);await db.$transaction(async tx=>{const session=await tx.storeSession.findFirst({where:{id:req.params.sessionId,storeId:s.id}});if(!session)fail(404,'Session not found.');await tx.storeSession.update({where:{id:session.id},data:{revokedAt:new Date()}});await audit(tx,req.admin,{orgId:s.orgId,storeId:s.id},'StoreSession',session.id,'revoke');});res.status(204).end();}));
- admin.get('/orgs/:orgId/stores/:storeId/login-qr',wrap(async(req,res)=>{const s=await ownedStore(req);res.type('image/png').send(await qrcode.toBuffer(s.loginCode,{width:400,margin:2}));}));
  admin.get('/orgs/:orgId/brand-assignments',wrap(async(req,res)=>{await org(req);json(res)(await db.storeBrand.findMany({where:{store:{orgId:req.params.orgId}},include:{brand:{select:{id:true,name:true,orgId:true}},store:{select:{id:true,name:true}}}}));}));
  admin.post('/orgs/:orgId/brand-assignments',wrap(async(req,res)=>{
    await org(req);

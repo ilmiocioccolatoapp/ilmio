@@ -197,24 +197,47 @@ class StoreSessionController extends ChangeNotifier {
   }
 
   Future<void> login(String loginCode, String password) async {
+    await _loginWith(
+      '/auth/store/login',
+      {
+        'loginCode': loginCode.trim(),
+        'password': password,
+        'deviceLabel': 'Store tablet'
+      },
+      loginCode.trim(),
+      qrLogin: false,
+    );
+  }
+
+  Future<void> loginWithQr(String loginCode, String token) async {
+    await _loginWith(
+      '/auth/store/qr-login',
+      {
+        'loginCode': loginCode,
+        'token': token,
+      },
+      loginCode,
+      qrLogin: true,
+    );
+  }
+
+  Future<void> _loginWith(
+      String path, Map<String, dynamic> body, String loginCode,
+      {required bool qrLogin}) async {
     await logout(remote: false);
     final generation = _generation;
     busy = true;
     error = null;
     _emit();
     try {
-      final data = _decode(await _post('/auth/store/login', {
-        'loginCode': loginCode.trim(),
-        'password': password,
-        'deviceLabel': 'Store tablet'
-      }));
+      final data = _decode(await _post(path, body));
       if (!_current(generation)) return;
       final store = Map<String, dynamic>.from(data['store']);
       _identity = {
         'storeId': store['id'],
         'orgId': store['orgId'],
         'storeName': store['name'],
-        'loginCode': loginCode.trim(),
+        'loginCode': loginCode,
         'refreshToken': data['refreshToken']
       };
       _accessToken = data['accessToken'];
@@ -225,7 +248,9 @@ class StoreSessionController extends ChangeNotifier {
         error = e.status == 429
             ? 'Too many attempts. Try again in ${((e.retryAfter ?? 900) / 60).ceil()} min.'
             : e.status == 401
-                ? 'Invalid store ID or password'
+                ? qrLogin
+                    ? 'Invalid Store Login QR.'
+                    : 'Invalid store ID or password'
                 : e.message;
       }
     } catch (_) {

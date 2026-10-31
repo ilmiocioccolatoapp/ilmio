@@ -30,14 +30,21 @@ export default function SuperAdminStoreWorkspace({
   const [storeId, setStoreId] = useState(store.loginCode);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const [qr, setQr] = useState('');
+  const [qr, setQr] = useState(null);
   const [devices, setDevices] = useState([]);
   const [devicesLoading, setDevicesLoading] = useState(false);
   const [devicesError, setDevicesError] = useState('');
   const [devicesRefreshKey, setDevicesRefreshKey] = useState(0);
 
-  useEffect(() => () => {
-    if (qr) URL.revokeObjectURL(qr);
+  useEffect(() => {
+    if (!qr) return undefined;
+    const remaining = new Date(qr.expiresAt).getTime() - Date.now();
+    if (remaining <= 0) {
+      setQr(null);
+      return undefined;
+    }
+    const timeout = setTimeout(() => setQr(null), remaining);
+    return () => clearTimeout(timeout);
   }, [qr]);
 
   useEffect(() => {
@@ -90,6 +97,7 @@ export default function SuperAdminStoreWorkspace({
       const updated = await platformService.put(`/orgs/${store.orgId}/stores/${store.id}`, { loginCode: storeId });
       const loginCode = updated?.loginCode || storeId;
       setStoreId(loginCode);
+      setQr(null);
       onStoreUpdated({ ...store, ...updated, loginCode, ownerName: store.ownerName });
       setMessage('Tablet Store ID updated.');
     });
@@ -113,12 +121,13 @@ export default function SuperAdminStoreWorkspace({
   const resetPassword = event => {
     event.preventDefault();
     run(async () => {
-      await platformService.post(`/orgs/${store.orgId}/stores/${store.id}/password`, {
+      const result = await platformService.post(`/orgs/${store.orgId}/stores/${store.id}/password`, {
         newPassword: password
       });
+      setQr({ dataUrl: result.qrDataUrl, expiresAt: result.qrExpiresAt });
       setPassword('');
       onStoreUpdated({ ...store, passwordConfigured: true });
-      setMessage('Tablet password saved. Existing tablet sessions were signed out.');
+      setMessage('Tablet password saved. Scan the one-time QR within five minutes; existing tablet sessions were signed out.');
     });
   };
   const deviceIsOnline = device => !device.revokedAt
@@ -318,19 +327,12 @@ export default function SuperAdminStoreWorkspace({
                 {store.passwordConfigured ? 'Save new password' : 'Set password'}
               </button>
             </form>
-            <div className="store-actions">
-              <button
-                className="btn btn-ghost"
-                disabled={busy}
-                onClick={() => run(async () => setQr(await platformService.qr(`/orgs/${store.orgId}/stores/${store.id}`)))}
-              >
-                Show tablet login QR
-              </button>
-            </div>
+            <p className="store-login-qr-help">A new one-time sign-in QR is generated whenever you set or reset the tablet password. It cannot be retrieved later.</p>
             {qr && <div className="store-login-qr">
-              <img src={qr} alt={`${store.name} tablet login QR`} width="240" />
-              <a href={qr} download={`${store.loginCode}-login.png`}>Download QR</a>
-              <button className="btn btn-ghost" onClick={() => { URL.revokeObjectURL(qr); setQr(''); }}>Close</button>
+              <p role="alert"><strong>Security warning:</strong> This QR grants one-time tablet access. Scan it within five minutes; do not print or share it.</p>
+              <img src={qr.dataUrl} alt={`${store.name} one-time tablet login QR`} width="240" />
+              <a href={qr.dataUrl} download={`${store.loginCode}-one-time-login.png`}>Download QR</a>
+              <button className="btn btn-ghost" onClick={() => setQr(null)}>Close</button>
             </div>}
           </div>
         </section>

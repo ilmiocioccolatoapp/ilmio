@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../services/store_session.dart';
 import '../services/api_service.dart';
+import '../services/store_login_qr.dart';
+import '../widgets/store_qr_scanner_page.dart';
 import 'gallery_screen.dart';
 
 class SessionGate extends StatefulWidget {
@@ -175,6 +177,16 @@ class _SessionGateState extends State<SessionGate> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> scanStoreQr() async {
+    final result = await Navigator.of(context).push<StoreLoginQr>(
+      MaterialPageRoute(builder: (_) => const StoreQrScannerPage()),
+    );
+    if (!mounted || result == null) return;
+    code.text = result.loginCode;
+    password.clear();
+    await controller.loginWithQr(result.loginCode, result.token);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (controller.busy && controller.menu == null) {
@@ -193,12 +205,21 @@ class _SessionGateState extends State<SessionGate> with WidgetsBindingObserver {
                         Text('Store sign in',
                             style: Theme.of(context).textTheme.headlineMedium),
                         const SizedBox(height: 24),
-                        TextField(
-                            controller: code,
-                            autocorrect: false,
-                            autofillHints: const [AutofillHints.username],
-                            decoration:
-                                const InputDecoration(labelText: 'Store ID')),
+                        Row(children: [
+                          Expanded(
+                            child: TextField(
+                                controller: code,
+                                autocorrect: false,
+                                autofillHints: const [AutofillHints.username],
+                                decoration: const InputDecoration(
+                                    labelText: 'Store ID')),
+                          ),
+                          IconButton(
+                            tooltip: 'Scan store login QR',
+                            onPressed: controller.busy ? null : scanStoreQr,
+                            icon: const Icon(Icons.qr_code_scanner),
+                          ),
+                        ]),
                         TextField(
                             controller: password,
                             obscureText: true,
