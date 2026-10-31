@@ -10,8 +10,38 @@ class StoreQrScannerPage extends StatefulWidget {
   State<StoreQrScannerPage> createState() => _StoreQrScannerPageState();
 }
 
-class _StoreQrScannerPageState extends State<StoreQrScannerPage> {
+class _StoreQrScannerPageState extends State<StoreQrScannerPage>
+    with WidgetsBindingObserver {
+  late final MobileScannerController _controller;
   String? _lastInvalidValue;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _controller = MobileScannerController(autoStart: false);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startScanner());
+  }
+
+  Future<void> _startScanner() async {
+    if (!mounted) return;
+    try {
+      await _controller.start();
+    } on MobileScannerException catch (error) {
+      if (mounted) {
+        setState(() => _lastInvalidValue = error.errorDetails?.message);
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startScanner();
+    } else if (state == AppLifecycleState.paused) {
+      _controller.stop();
+    }
+  }
 
   void _onDetect(BarcodeCapture capture) {
     for (final barcode in capture.barcodes) {
@@ -33,6 +63,13 @@ class _StoreQrScannerPageState extends State<StoreQrScannerPage> {
   }
 
   @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
@@ -42,52 +79,64 @@ class _StoreQrScannerPageState extends State<StoreQrScannerPage> {
         foregroundColor: Colors.white,
       ),
       body: Stack(
-        alignment: Alignment.center,
         children: [
-          Positioned.fill(
-            child: MobileScanner(
-              onDetect: _onDetect,
-              errorBuilder: (context, error) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Text(
-                    error.errorCode == MobileScannerErrorCode.permissionDenied
-                        ? 'Camera permission is needed to scan a store login QR.'
-                        : 'The camera could not be started. Check camera access and try again.',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: 720,
+              height: 520,
+              child: MobileScanner(
+                controller: _controller,
+                onDetect: _onDetect,
+                errorBuilder: (context, error) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Text(
+                      error.errorCode == MobileScannerErrorCode.permissionDenied
+                          ? 'Camera permission is needed to scan a store login QR.'
+                          : 'The camera could not be started. Check camera access and try again.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                    ),
                   ),
                 ),
               ),
             ),
           ),
           IgnorePointer(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 280,
-                  height: 220,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white, width: 3),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SizedBox(
+                width: 720,
+                height: 520,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 560,
+                      height: 360,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white, width: 3),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.65),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'Align the store QR code within the frame.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 24),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.65),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Text(
-                    'Align the store QR code within the frame.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ],
