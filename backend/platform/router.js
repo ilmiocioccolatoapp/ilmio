@@ -9,6 +9,12 @@ const {resolveMenu,publish,publishedMenu}=require('./menu');
 const {audit,lockBrand}=require('./audit');
 const {createProvisioningClients}=require('./provisioning');
 const status=value=>{if(!['active','inactive'].includes(value))fail(400,'Status must be active or inactive.');return value;};
+const organizationNameKey=name=>name.trim().replace(/\s+/g,' ').toLocaleLowerCase('en');
+function labelOrganizations(orgs){
+ const counts=new Map();
+ for(const org of orgs){const key=organizationNameKey(org.name);counts.set(key,(counts.get(key)||0)+1);}
+ return orgs.map(org=>({...org,displayName:counts.get(organizationNameKey(org.name))>1?`${org.name} · ${org.id}`:org.name}));
+}
 const storeSelect={id:true,orgId:true,name:true,slug:true,address:true,phone:true,timezone:true,status:true,loginCode:true,revision:true,lastLoginAt:true};
 const assignmentInclude={brand:{select:{id:true,name:true,orgId:true,slug:true}},store:{select:{id:true,name:true,orgId:true}},overrides:true};
 const json=res=>value=>res.json({success:true,data:value});
@@ -60,18 +66,34 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
  async function me(req,res){
    const brands=await db.brand.findMany({where:brandWhere(req.admin),orderBy:{name:'asc'}});
    const orgIds=[...new Set([...req.admin.orgMemberships.map(m=>m.orgId),...brands.map(b=>b.orgId)])];
-   const orgs=await db.organization.findMany({where:req.admin.isPlatformAdmin?{}:{id:{in:orgIds},status:'active'},orderBy:{name:'asc'}});
+   const orgs=labelOrganizations(await db.organization.findMany({where:req.admin.isPlatformAdmin?{}:{id:{in:orgIds},status:'active'},orderBy:[{name:'asc'},{id:'asc'}]}));
    res.json({success:true,data:{...req.adminUser,name:req.admin.name,isPlatformAdmin:req.admin.isPlatformAdmin,orgMemberships:req.admin.orgMemberships,brandMemberships:req.admin.brandMemberships,orgs,brands}});
  }
  admin.get('/me',wrap(me));
  router.get('/auth/me',wrap(adminAuth),wrap(me));
- admin.get('/orgs',wrap(async(req,res)=>{const orgIds=req.admin.orgMemberships.map(m=>m.orgId);json(res)(await db.organization.findMany({where:req.admin.isPlatformAdmin?{}:{id:{in:orgIds},status:'active'},orderBy:{name:'asc'}}));}));
+ admin.get('/orgs',wrap(async(req,res)=>{const orgIds=req.admin.orgMemberships.map(m=>m.orgId);json(res)(labelOrganizations(await db.organization.findMany({where:req.admin.isPlatformAdmin?{}:{id:{in:orgIds},status:'active'},orderBy:[{name:'asc'},{id:'asc'}]})));}));
  admin.get('/stores',wrap(async(req,res)=>{
    platformAdminScope(req.admin);
-   const stores=await db.store.findMany({select:{...storeSelect,passwordHash:true,org:{select:{name:true}},assignments:{include:{brand:{select:{id:true,name:true,orgId:true}}}}},orderBy:{name:'asc'}});
-   json(res)(stores.map(({passwordHash,org,...store})=>({...store,ownerName:org.name,passwordConfigured:passwordHash?.startsWith('$argon2id$')??false})));
+   const stores=await db.store.findMany({select:{...storeSelect,passwordHash:true,org:{select:{id:true,name:true}},assignments:{include:{brand:{select:{id:true,name:true,orgId:true}}}}},orderBy:{name:'asc'}});
+   const orgLabels=new Map(labelOrganizations([...new Map(stores.map(store=>[store.org.id,store.org])).values()]).map(org=>[org.id,org.displayName]));
+   json(res)(stores.map(({passwordHash,org,...store})=>({...store,ownerName:org.name,ownerDisplayName:orgLabels.get(org.id)||org.name,passwordConfigured:passwordHash?.startsWith('$argon2id$')??false})));
  }));
- admin.post('/orgs',wrap(async(req,res)=>{if(!req.admin.isPlatformAdmin)fail(403,'Platform administrator access is required.');const data=await db.$transaction(async tx=>{const o=await tx.organization.create({data:{name:text(req.body.name,'Organization name')}});await audit(tx,req.admin,{orgId:o.id},'Organization',o.id,'create');return o;});res.status(201).json({success:true,data});}));
+ admin.get('/dashboard',wrap(async(req,res)=>{
+   platformAdminScope(req.admin);
+   const now=new Date(),onlineSince=new Date(now.getTime()-10*60*1000);
+   const stores=await db.store.findMany({
+     select:{
+       id:true,orgId:true,name:true,status:true,loginCode:true,lastLoginAt:true,passwordHash:true,
+       org:{select:{id:true,name:true}},
+       assignments:{where:{status:'active'},select:{id:true,status:true,brand:{select:{id:true,name:true,slug:true}}}},
+       sessions:{where:{revokedAt:null,expiresAt:{gt:now},lastSeenAt:{gte:onlineSince}},select:{id:true,deviceLabel:true,lastSeenAt:true,expiresAt:true},orderBy:{lastSeenAt:'desc'}}
+     },
+     orderBy:{name:'asc'}
+   });
+   const orgLabels=new Map(labelOrganizations([...new Map(stores.map(store=>[store.org.id,store.org])).values()]).map(org=>[org.id,org.displayName]));
+   json(res)({asOf:now.toISOString(),onlineWindowMinutes:10,stores:stores.map(({org,sessions,passwordHash,...store})=>({...store,ownerName:orgLabels.get(org.id)||org.name,passwordConfigured:passwordHash?.startsWith('$argon2id$')??false,devices:sessions}))});
+ }));
+ admin.post('/orgs',wrap(async(req,res)=>{platformAdminScope(req.admin);const name=text(req.body.name,'Organization name');const data=await db.$transaction(async tx=>{const key=organizationNameKey(name);await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`organization-name:${key}`}))`;const existing=await tx.$queryRaw`SELECT "id" FROM "Organization" WHERE lower(regexp_replace(trim("name"), '[[:space:]]+', ' ', 'g')) = ${key} LIMIT 1`;if(existing.length)fail(409,'An organization with this name already exists. Select it or merge the duplicate organizations first.');const o=await tx.organization.create({data:{name}});await audit(tx,req.admin,{orgId:o.id},'Organization',o.id,'create');return o;});res.status(201).json({success:true,data:{...data,displayName:data.name}});}));
  admin.put('/orgs/:orgId',wrap(async(req,res)=>{await org(req);const data=await db.$transaction(async tx=>{const o=await tx.organization.update({where:{id:req.params.orgId},data:{...(req.body.name!==undefined?{name:text(req.body.name,'Organization name')}:{}),...(req.body.status!==undefined?{status:status(req.body.status)}:{})}});if(req.body.status!==undefined){await tx.store.updateMany({where:{OR:[{orgId:o.id},{assignments:{some:{brand:{orgId:o.id}}}}]},data:{revision:{increment:1}}});}await audit(tx,req.admin,{orgId:o.id},'Organization',o.id,'update',{status:o.status});return o;});json(res)(data);}));
  admin.get('/brands',wrap(async(req,res)=>json(res)(await db.brand.findMany({where:brandWhere(req.admin),orderBy:{name:'asc'}}))));
  admin.post('/brands',wrap(async(req,res)=>{platformAdminScope(req.admin);const o=await db.organization.findUnique({where:{id:text(req.body.orgId,'Organization')}});if(!o||o.status!=='active')fail(404,'Organization not found.');const result=await db.$transaction(async tx=>{const b=await tx.brand.create({data:{orgId:o.id,name:text(req.body.name,'Brand name'),slug:code(req.body.slug,'Brand slug'),currency:currency(req.body.currency||'AED'),timezone:timezone(req.body.timezone||'Asia/Dubai')}});await audit(tx,req.admin,{orgId:o.id,brandId:b.id},'Brand',b.id,'create');return b;});res.status(201).json({success:true,data:result});}));

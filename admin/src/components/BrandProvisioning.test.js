@@ -12,9 +12,10 @@ jest.mock('../services/api', () => ({
   }
 }));
 
+const organizations = [{ id: 'org-1', name: 'Il Mio Holdings' }];
 const brands = [
-  { id: 'brand-1', orgId: 'org-1', name: 'Il Mio', slug: 'ilmio', currency: 'AED', timezone: 'Asia/Dubai' },
-  { id: 'brand-2', orgId: 'org-1', name: 'Il Mio', slug: 'ilmio-cafe', currency: 'AED', timezone: 'Asia/Dubai' }
+  { id: 'brand-1', orgId: 'org-1', name: 'Il Mio Cioccolato', slug: 'ilmio', currency: 'AED', timezone: 'Asia/Dubai', status: 'active' },
+  { id: 'brand-2', orgId: 'org-1', name: 'Coffee Beans World', slug: 'cbw', currency: 'AED', timezone: 'Asia/Dubai', status: 'active' }
 ];
 let element;
 let root;
@@ -28,12 +29,10 @@ const setValue = async (input, value) => {
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
 };
-const submit = async form => flush(() => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
 
 beforeEach(async () => {
   global.IS_REACT_ACT_ENVIRONMENT = true;
   jest.clearAllMocks();
-  platformService.get.mockResolvedValue([]);
   platformService.post.mockResolvedValue({});
   platformService.put.mockResolvedValue({});
   platformService.remove.mockResolvedValue({});
@@ -41,12 +40,7 @@ beforeEach(async () => {
   document.body.appendChild(element);
   root = createRoot(element);
   await flush(() => root.render(
-    <BrandProvisioning
-      organizations={[{ id: 'org-1', name: 'Il Mio Holdings' }]}
-      brands={brands}
-      selectedOrg={{ id: 'org-1', name: 'Il Mio Holdings' }}
-      onChanged={jest.fn()}
-    />
+    <BrandProvisioning organizations={organizations} brands={brands} onChanged={jest.fn()} />
   ));
 });
 
@@ -55,52 +49,60 @@ afterEach(async () => {
   element.remove();
 });
 
-test('brand dashboard distinguishes same-name brands by slug and edits through settings API', async () => {
-  const slugs = [...element.querySelectorAll('.brand-slug')].map(item => item.textContent.trim());
-  expect(element.querySelectorAll('.brand-record')).toHaveLength(2);
-  expect(slugs).toEqual(['· ilmio', '· ilmio-cafe']);
-  await flush(() => button('Edit Brand').click());
+test('brand management lists brand cards with brand codes and owner', () => {
+  expect(element.textContent).toContain('Il Mio Cioccolato');
+  expect(element.textContent).toContain('Coffee Beans World');
+  expect(element.textContent).toContain('ilmio');
+  expect(element.textContent).toContain('cbw');
+  expect(element.textContent).toContain('Il Mio Holdings');
+  expect(element.querySelectorAll('.brand-card')).toHaveLength(2);
+});
+
+test('adding a brand sends the selected owner organization', async () => {
+  platformService.post.mockResolvedValue({
+    id: 'brand-3',
+    orgId: 'org-1',
+    name: 'New Cafe',
+    slug: 'new-cafe',
+    currency: 'AED',
+    timezone: 'Asia/Dubai',
+    status: 'active'
+  });
+  await flush(() => button('+ Add brand').click());
   const dialog = element.querySelector('[role="dialog"]');
-  expect(dialog.querySelector('input[readonly]').value).toBe('ilmio');
-  await setValue(dialog.querySelector('input[required]'), 'Il Mio Chocolate');
-  await submit(dialog.querySelector('form'));
+  const name = dialog.querySelector('input');
+  await setValue(name, 'New Cafe');
+  const codeInput = dialog.querySelectorAll('input')[1];
+  await setValue(codeInput, 'new-cafe');
+  await flush(() => dialog.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(platformService.post).toHaveBeenCalledWith('/brands', expect.objectContaining({
+    orgId: 'org-1',
+    name: 'New Cafe',
+    slug: 'new-cafe'
+  }));
+  expect(element.textContent).toContain('New Cafe');
+});
+
+test('brand edits use the settings endpoint', async () => {
+  await flush(() => [...element.querySelectorAll('.brand-card')][0].querySelector('button').click());
+  const dialog = element.querySelector('[role="dialog"]');
+  await setValue(dialog.querySelector('input'), 'Il Mio Chocolate');
+  platformService.put.mockResolvedValue({ ...brands[0], name: 'Il Mio Chocolate' });
+  await flush(() => dialog.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
   expect(platformService.put).toHaveBeenCalledWith('/brands/brand-1/settings', expect.objectContaining({
     name: 'Il Mio Chocolate',
-    slug: 'ilmio',
-    currency: 'AED'
+    slug: 'ilmio'
   }));
-  expect(element.textContent).toContain('Brand updated.');
 });
 
-test('brand dashboard creates a branch through the atomic brand endpoint', async () => {
-  platformService.post.mockResolvedValue({ id: 'store-1' });
-  platformService.get.mockResolvedValue([]);
-  await flush(() => button('Manage Branches').click());
-  const dialog = element.querySelector('[role="dialog"]');
-  const inputs = dialog.querySelectorAll('input');
-  await setValue(inputs[0], 'Airport branch');
-  await setValue(inputs[1], 'airport-branch');
-  await setValue(inputs[2], 'airport-tablet');
-  await setValue(inputs[3], 'tablet-123');
-  await setValue(inputs[4], 'Terminal 1');
-  await submit(dialog.querySelector('form'));
-  expect(platformService.post).toHaveBeenCalledWith('/brands/brand-1/stores', expect.objectContaining({
-    name: 'Airport branch',
-    slug: 'airport-branch',
-    loginCode: 'airport-tablet',
-    address: 'Terminal 1'
-  }));
-  expect(element.textContent).toContain('Branch created and assigned to this brand.');
-});
-
-test('brand dashboard asks for confirmation before deleting', async () => {
-  const originalConfirm = window.confirm;
+test('brand deletion asks for confirmation before removing the brand', async () => {
+  const original = window.confirm;
   window.confirm = jest.fn(() => true);
   try {
-    await flush(() => button('Delete Brand').click());
+    const deleteButton = [...element.querySelectorAll('.brand-card')][0].querySelectorAll('button')[1];
+    await flush(() => deleteButton.click());
     expect(platformService.remove).toHaveBeenCalledWith('/brands/brand-1');
-    expect(element.textContent).toContain('Brand deleted.');
   } finally {
-    window.confirm = originalConfirm;
+    window.confirm = original;
   }
 });

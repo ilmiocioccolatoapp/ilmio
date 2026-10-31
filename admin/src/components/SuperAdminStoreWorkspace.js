@@ -7,8 +7,10 @@ import StoreMenu from './StoreMenu';
 const sections = [
   ['menu', 'Menu'],
   ['categories', 'Categories'],
+  ['devices', 'Device management'],
   ['tablet', 'Tablet login']
 ];
+const onlineWindowMs = 10 * 60 * 1000;
 
 export default function SuperAdminStoreWorkspace({
   store,
@@ -28,10 +30,26 @@ export default function SuperAdminStoreWorkspace({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [qr, setQr] = useState('');
+  const [devices, setDevices] = useState([]);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+  const [devicesError, setDevicesError] = useState('');
+  const [devicesRefreshKey, setDevicesRefreshKey] = useState(0);
 
   useEffect(() => () => {
     if (qr) URL.revokeObjectURL(qr);
   }, [qr]);
+
+  useEffect(() => {
+    if (section !== 'devices') return undefined;
+    let active = true;
+    setDevicesLoading(true);
+    setDevicesError('');
+    platformService.get(`/orgs/${store.orgId}/stores/${store.id}/sessions`)
+      .then(result => { if (active) setDevices(result); })
+      .catch(error => { if (active) setDevicesError(error.error || error.message || 'Could not load devices.'); })
+      .finally(() => { if (active) setDevicesLoading(false); });
+    return () => { active = false; };
+  }, [section, store.orgId, store.id, devicesRefreshKey]);
 
   const availableAssignments = store.assignments.filter(assignment => assignment.status === 'active');
   const selectedBrand = brands.find(brand => brand.id === brandId);
@@ -84,6 +102,22 @@ export default function SuperAdminStoreWorkspace({
       setPassword('');
       onStoreUpdated({ ...store, passwordConfigured: true });
       setMessage('Tablet password saved. Existing tablet sessions were signed out.');
+    });
+  };
+  const deviceIsOnline = device => !device.revokedAt
+    && new Date(device.expiresAt).getTime() > Date.now()
+    && Date.now() - new Date(device.lastSeenAt).getTime() < onlineWindowMs;
+  const revokeDevice = device => run(async () => {
+    await platformService.post(`/orgs/${store.orgId}/stores/${store.id}/sessions/${device.id}/revoke`, {});
+    setDevicesRefreshKey(key => key + 1);
+    setMessage('Device signed out.');
+  });
+  const revokeAllDevices = () => {
+    if (!window.confirm(`Sign out every tablet at ${store.name}?`)) return;
+    run(async () => {
+      await platformService.post(`/orgs/${store.orgId}/stores/${store.id}/revoke-devices`, {});
+      setDevicesRefreshKey(key => key + 1);
+      setMessage('All tablets signed out.');
     });
   };
 
@@ -177,6 +211,43 @@ export default function SuperAdminStoreWorkspace({
           ) : (
             <div className="ledger-card"><p>Assign a brand menu to manage its categories.</p></div>
           )}
+        </section>
+      )}
+
+      {section === 'devices' && (
+        <section className="device-management-panel">
+          <div className="dashboard-section-heading">
+            <div>
+              <h2>Devices for {store.name}</h2>
+              <p>Online means the tablet checked in within the last 10 minutes.</p>
+            </div>
+            <div className="store-actions">
+              <button type="button" className="btn btn-ghost btn-sm" disabled={devicesLoading} onClick={() => setDevicesRefreshKey(key => key + 1)}>Refresh</button>
+              <button type="button" className="btn btn-ghost-danger btn-sm" disabled={busy || !devices.some(deviceIsOnline)} onClick={revokeAllDevices}>Sign out all devices</button>
+            </div>
+          </div>
+          {devicesLoading ? <p role="status">Loading devices…</p>
+            : devicesError ? <p role="alert">{devicesError}</p>
+              : devices.length ? (
+                <div className="dashboard-device-list">
+                  {devices.map(device => {
+                    const online = deviceIsOnline(device);
+                    return (
+                      <article className="dashboard-device-card" key={device.id}>
+                        <span className={`dashboard-device-indicator ${online ? 'is-online' : 'is-offline'}`} aria-label={online ? 'Online' : 'Offline'} />
+                        <div className="dashboard-device-details">
+                          <strong>{device.deviceLabel || 'Store tablet'}</strong>
+                          <span>{device.revokedAt ? 'Signed out' : online ? 'Online' : 'Offline'}</span>
+                          <small>Last check-in {new Date(device.lastSeenAt).toLocaleString()}</small>
+                        </div>
+                        <button type="button" className="btn btn-ghost-danger btn-sm" disabled={busy || Boolean(device.revokedAt)} onClick={() => revokeDevice(device)}>
+                          Sign out device
+                        </button>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : <div className="ledger-card dashboard-empty"><p>No tablet devices have signed in to this store.</p></div>}
         </section>
       )}
 

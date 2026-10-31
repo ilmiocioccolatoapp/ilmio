@@ -187,26 +187,32 @@ test('organization administrators only see store operations, not brand catalog t
   expect(element.textContent).not.toContain('Create brand');
 });
 
-test('Platform Admin can create brands and invite brand administrators from the Brands screen', async () => {
-  const platformUser={...membership,isPlatformAdmin:true,orgs:[{id:'org-1',name:'Owner'}],id:'admin-1',email:'platform@example.test'};
+test('Platform Admin has a dashboard and simple store and brand management sections', async () => {
+  const platformUser={...membership,isPlatformAdmin:true,orgs:[{id:'org-1',name:'Owner'}],brands:[
+    {id:'brand-1',orgId:'org-1',name:'Il Mio Cioccolato',slug:'ilmio',currency:'AED',timezone:'Asia/Dubai',status:'active'},
+    {id:'brand-2',orgId:'org-1',name:'Coffee Beans World',slug:'cbw',currency:'AED',timezone:'Asia/Dubai',status:'active'}
+  ],id:'admin-1',email:'platform@example.test'};
   authService.getCurrentUser.mockResolvedValue(platformUser);
-  platformService.get.mockResolvedValue([]);
+  platformService.get.mockImplementation(path => Promise.resolve(path==='/dashboard'
+    ? {asOf:new Date().toISOString(),onlineWindowMinutes:10,stores:[
+      {id:'store-1',orgId:'org-1',name:'Main store',status:'active',ownerName:'Owner',devices:[{id:'device-1',deviceLabel:'Front tablet',lastSeenAt:new Date().toISOString()}]},
+      {id:'store-2',orgId:'org-1',name:'Second store',status:'active',ownerName:'Owner',devices:[]}
+    ]}
+    : []));
   await flush(() => emit('TOKEN_REFRESHED',{...session,access_token:'platform-token'}));
-  expect(button('Brands')).toBeDefined();
-  await flush(() => button('Brands').click());
-  expect(element.textContent).toContain('Create brand');
-  expect(element.textContent).toContain('Invite brand administrator');
-  const email=element.querySelector('input[type="email"]');
-  const setValue=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
-  await flush(()=>{setValue.call(email,'brandadmin@example.test');email.dispatchEvent(new Event('input',{bubbles:true}));});
-  platformService.post.mockResolvedValue({membership:{id:'membership-1'},inviteSent:true});
-  const inviteForm=email.closest('form');
-  await flush(()=>inviteForm.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
-  expect(platformService.post).toHaveBeenCalledWith('/brands/brand-1/admins',expect.objectContaining({email:'brandadmin@example.test'}));
-  expect(element.textContent).toContain('Invitation email sent');
+  expect(button('Dashboard')).toBeDefined();
+  expect(button('Store management')).toBeDefined();
+  expect(button('Brand management')).toBeDefined();
+  expect(element.textContent).toContain('Front tablet');
+  expect(element.textContent).toContain('Main store');
+  expect(element.textContent).toContain('Second store');
+  await flush(() => button('Brand management').click());
+  expect(element.querySelector('.brand-card')).not.toBeNull();
+  expect(element.textContent).toContain('Coffee Beans World');
+  expect(button('+ Add brand')).toBeDefined();
 });
 
-test('Platform Admin lands on a simple store directory and creates a store from the top right', async () => {
+test('Platform Admin keeps Stores top-level and can create a store from its directory', async () => {
   const platformUser={...membership,isPlatformAdmin:true,orgs:[{id:'org-1',name:'Owner'}],id:'admin-1',email:'platform@example.test'};
   authService.getCurrentUser.mockResolvedValue(platformUser);
   const createdStore={
@@ -221,10 +227,11 @@ test('Platform Admin lands on a simple store directory and creates a store from 
   });
   platformService.post.mockImplementation(path => Promise.resolve(path.endsWith('/stores')?createdStore:{id:'assignment-new'}));
   await flush(() => emit('TOKEN_REFRESHED',{...session,access_token:'platform-store-token'}));
-  expect(button('Stores')).toBeDefined();
-  expect(button('Brands')).toBeDefined();
+  expect(button('Store management')).toBeDefined();
+  expect(button('Brand management')).toBeDefined();
+  await flush(() => button('Store management').click());
   expect(button('+ Create store')).toBeDefined();
-  expect(element.textContent).toContain('Select a store to manage its menu and tablet login.');
+  expect(element.textContent).toContain('Select a store card to manage its menu, devices, and tablet login.');
   await flush(() => button('+ Create store').click());
   expect(element.querySelector('[role="dialog"]')).not.toBeNull();
   expect(element.textContent).toContain('Tablet Store ID');
@@ -255,9 +262,13 @@ test('store cards open menu, categories, and tablet login for the selected store
     if(path==='/brands/brand-1/stores') return Promise.resolve([{
       id:'assignment-1',storeId:'store-1',brandId:'brand-1',store:{id:'store-1',name:'Main store'},status:'active',overrides:[]
     }]);
+    if(path==='/orgs/org-1/stores/store-1/sessions') return Promise.resolve([{
+      id:'session-1',deviceLabel:'Front tablet',lastSeenAt:new Date().toISOString(),expiresAt:new Date(Date.now()+3600000).toISOString(),revokedAt:null
+    }]);
     return Promise.resolve([]);
   });
   await flush(() => emit('TOKEN_REFRESHED',{...session,access_token:'platform-branch-menu-token'}));
+  await flush(() => button('Store management').click());
   expect(element.querySelectorAll('.store-card')).toHaveLength(2);
   expect(element.textContent).toContain('Main store');
   expect(element.textContent).toContain('Second store');
@@ -265,11 +276,16 @@ test('store cards open menu, categories, and tablet login for the selected store
   expect(element.textContent).toContain('Main store');
   expect(button('Menu')).toBeDefined();
   expect(button('Categories')).toBeDefined();
+  expect(button('Device management')).toBeDefined();
   expect(button('Tablet login')).toBeDefined();
   await flush(() => button('Store availability & publishing').click());
   expect(element.textContent).toContain('Publish to this store');
   expect(button('← Back to store')).toBeDefined();
   await flush(() => button('← Back to store').click());
+  await flush(() => button('Device management').click());
+  expect(element.textContent).toContain('Front tablet');
+  expect(element.textContent).toContain('Online');
+  expect(platformService.get).toHaveBeenCalledWith('/orgs/org-1/stores/store-1/sessions');
   await flush(() => button('Tablet login').click());
   expect(element.textContent).toContain('Tablet login details');
   expect(element.textContent).toContain('main-store');

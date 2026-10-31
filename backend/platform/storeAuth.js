@@ -71,6 +71,8 @@ function createStoreAuth(db) {
     if(claims.realm!=='store' || typeof claims.sessionId!=='string')fail(401,'Invalid store session.');
     const session=await db.storeSession.findUnique({where:{id:claims.sessionId},include:{store:{include:{org:true}}}});
     if(!session || session.revokedAt || session.expiresAt<=new Date() || session.storeId!==claims.storeId || session.store.orgId!==claims.orgId || session.tokenVersion!==claims.tokenVersion || session.store.tokenVersion!==claims.tokenVersion || session.store.status!=='active' || session.store.org.status!=='active')fail(401,'Store session is no longer valid.');
+    const lastSeenBefore=new Date(Date.now()-60_000);
+    if(session.lastSeenAt<lastSeenBefore)await db.storeSession.updateMany({where:{id:session.id,revokedAt:null,lastSeenAt:{lt:lastSeenBefore}},data:{lastSeenAt:new Date()}});
     req.store=session.store;req.storeSession=session;res.set('X-Store-Id',session.storeId);next();
   };
 }

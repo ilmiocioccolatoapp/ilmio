@@ -40,8 +40,8 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
     <div className="page-container super-admin-stores">
       <div className="section-header">
         <div>
-          <h1 className="section-title">Stores</h1>
-          <p className="section-subtitle">Select a store to manage its menu and tablet login.</p>
+          <h1 className="section-title">Store management</h1>
+          <p className="section-subtitle">Select a store card to manage its menu, devices, and tablet login.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setCreateOpen(true)}>
           + Create store
@@ -69,7 +69,7 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
                 <span className="store-card-title">{store.name}</span>
                 <span className={`store-card-status ${store.status === 'active' ? 'is-active' : ''}`}>{store.status}</span>
               </span>
-              <span className="store-card-owner">{store.ownerName}</span>
+              <span className="store-card-owner">{store.ownerDisplayName || store.ownerName}</span>
               <span className="store-card-id">Tablet Store ID <strong>{store.loginCode}</strong></span>
               <span className="store-card-brands">{store.assignments.length
                 ? store.assignments.map(assignment => assignment.brand.name).join(', ')
@@ -190,13 +190,13 @@ function CreateStoreDialog({ organizations, brands, onCancel, onCreated }) {
                   brandId: brands.find(brand => brand.orgId === orgId)?.id || ''
                 });
               }}>
-                {organizations.map(owner => <option key={owner.id} value={owner.id}>{owner.name}</option>)}
+                {organizations.map(owner => <option key={owner.id} value={owner.id}>{owner.displayName || owner.name}</option>)}
               </select>
             </label>
             <label>Menu brand
               <select value={values.brandId} onChange={event => setValues({ ...values, brandId: event.target.value })}>
                 <option value="">Assign later</option>
-                {brands.map(brand => <option key={brand.id} value={brand.id}>{brand.name}</option>)}
+                {brands.map(brand => <option key={brand.id} value={brand.id}>{brand.name} ({brand.slug})</option>)}
               </select>
             </label>
             <label>Store name

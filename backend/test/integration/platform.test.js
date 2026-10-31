@@ -5,6 +5,7 @@ const {PrismaClient}=require('@prisma/client');
 const {createApp}=require('../../app');
 const {hash}=require('../../platform/storeAuth');
 const {duplicateGroups,mergeBrands}=require('../../scripts/reconcile-duplicate-brands');
+const {mergeOrganizations}=require('../../scripts/reconcile-duplicate-organizations');
 const db=new PrismaClient();
 let server,url;
 const uid={super:'super-user',ownerA:'owner-a',ownerB:'owner-b',brandA:'brand-a-user',brandB:'brand-b-user'};
@@ -76,6 +77,36 @@ test('platform provisioning is invite-only and brand operations are role scoped'
  assert.equal(authUsers.has('brandlead@example.test'),true);
  assert.equal((await call('/admin/me',{actor:'brandlead'})).status,403);
 });
+test('organization endpoints disambiguate duplicate names and reject new duplicate organizations',async()=>{
+ await db.organization.createMany({data:[
+  {id:'same-owner-a',name:'Il Mio Cioccolato'},
+  {id:'same-owner-b',name:'Il Mio Cioccolato'}
+ ]});
+ const orgs=await ok('/admin/orgs');
+ const duplicates=orgs.filter(org=>org.id.startsWith('same-owner-'));
+ assert.equal(duplicates.length,2);
+ assert.notEqual(duplicates[0].displayName,duplicates[1].displayName);
+ assert.ok(duplicates.every(org=>org.displayName.includes(org.id)));
+ const me=await ok('/admin/me');
+ const meDuplicates=me.orgs.filter(org=>org.id.startsWith('same-owner-'));
+ assert.deepEqual(meDuplicates.map(org=>org.displayName),duplicates.map(org=>org.displayName));
+ assert.equal((await call('/admin/orgs',{method:'POST',body:{name:' il mio cioccolato '}})).status,409);
+ const created=await ok('/admin/orgs',{method:'POST',body:{name:'Unique Organization'}});
+ assert.equal(created.displayName,'Unique Organization');
+ assert.equal((await call('/admin/orgs',{method:'POST',body:{name:'unique organization'}})).status,409);
+});
+test('platform dashboard reports recently active tablet devices and offline stores',async()=>{
+ const now=new Date();
+ await db.storeSession.createMany({data:[
+  {id:'dashboard-online',storeId:'downtown',tokenVersion:0,refreshHash:'test-hash',deviceLabel:'Front counter',expiresAt:new Date(now.getTime()+86400000),lastSeenAt:now},
+  {id:'dashboard-stale',storeId:'marina',tokenVersion:0,refreshHash:'test-hash',deviceLabel:'Old tablet',expiresAt:new Date(now.getTime()+86400000),lastSeenAt:new Date(now.getTime()-30*60*1000)}
+ ]});
+ const dashboard=await ok('/admin/dashboard');
+ assert.equal(dashboard.onlineWindowMinutes,10);
+ assert.equal(dashboard.stores.find(store=>store.id==='downtown').devices[0].deviceLabel,'Front counter');
+ assert.deepEqual(dashboard.stores.find(store=>store.id==='marina').devices,[]);
+ assert.equal((await call('/admin/dashboard',{actor:'ownerA'})).status,403);
+});
 test('store create and reset accept six-character passwords and reject shorter values',async()=>{
  const details={name:'Branch password test',slug:'branch-password-test',loginCode:'branch-password-test',password:'abcde'};
  assert.equal((await call('/admin/orgs/org-a/stores',{method:'POST',body:details})).status,400);
@@ -120,7 +151,11 @@ test('published snapshots, store isolation, overrides, ETags and realms',async()
  await ok('/admin/brands/brand-b/publish',{actor:'brandB',method:'POST',body:{}});
  downtown=await ok('/auth/store/login',{actor:null,method:'POST',body:{loginCode:'downtown',password:'tablet-password-123'}});
  marina=await ok('/auth/store/login',{actor:null,method:'POST',body:{loginCode:'marina',password:'tablet-password-123'}});
+ const downtownSessionId=jwt.decode(downtown.accessToken).sessionId;
+ const staleCheckIn=new Date(Date.now()-11*60*1000);
+ await db.storeSession.update({where:{id:downtownSessionId},data:{lastSeenAt:staleCheckIn}});
  let r=await call('/menu',{token:downtown.accessToken});assert.equal(r.status,200);assert.equal(r.body.brands.length,2);
+ assert.ok((await db.storeSession.findUnique({where:{id:downtownSessionId}})).lastSeenAt>staleCheckIn);
  assert.equal((await call('/menu',{actor:null})).status,401);
  assert.equal((await call('/menu',{token:jwt.sign({aud:'authenticated',sub:uid.brandA},'dummy-admin-test-key')})).status,403);
  assert.equal((await call('/admin/me',{token:downtown.accessToken})).status,403);
@@ -199,6 +234,27 @@ test('duplicate brand reconciliation preserves memberships, assignments, categor
  assert.ok(await db.category.findFirst({where:{brandId:'merge-canonical',code:'merge-category'}}));
  assert.ok(await db.asset.findFirst({where:{brandId:'merge-canonical',publicId:'merge-asset'}}));
  assert.ok(await db.auditLog.findFirst({where:{brandId:'merge-canonical',action:'old-event'}}));
+});
+test('duplicate organization reconciliation migrates memberships, brands, stores and audit history',async()=>{
+ await db.organization.createMany({data:[
+  {id:'org-merge-canonical',name:'Merge Company'},
+  {id:'org-merge-duplicate',name:' merge company '}
+ ]});
+ await db.orgMembership.create({data:{profileId:uid.brandA,orgId:'org-merge-duplicate'}});
+ await db.brand.create({data:{id:'org-merge-brand',orgId:'org-merge-duplicate',name:'Merge Brand',slug:'merge-brand'}});
+ const passwordHash=await hash('branch-password-123');
+ await db.store.create({data:{id:'org-merge-store',orgId:'org-merge-duplicate',name:'Merge Branch',slug:'merge-branch',loginCode:'merge-branch-id',passwordHash}});
+ await db.auditLog.create({data:{actorType:'system',orgId:'org-merge-duplicate',entity:'Organization',entityId:'org-merge-duplicate',action:'old-owner-event'}});
+ const result=await mergeOrganizations(db,'org-merge-canonical',['org-merge-duplicate']);
+ assert.deepEqual(result.removedOrganizationIds,['org-merge-duplicate']);
+ assert.equal(result.movedMemberships,1);
+ assert.equal(result.movedBrands,1);
+ assert.equal(result.movedStores,1);
+ assert.equal(await db.organization.findUnique({where:{id:'org-merge-duplicate'}}),null);
+ assert.ok(await db.orgMembership.findUnique({where:{profileId_orgId:{profileId:uid.brandA,orgId:'org-merge-canonical'}}}));
+ assert.equal((await db.brand.findUnique({where:{id:'org-merge-brand'}})).orgId,'org-merge-canonical');
+ assert.equal((await db.store.findUnique({where:{id:'org-merge-store'}})).orgId,'org-merge-canonical');
+ assert.ok(await db.auditLog.findFirst({where:{orgId:'org-merge-canonical',action:'old-owner-event'}}));
 });
 test('refresh rotates once; revoke/password reset reject reads before 304',async()=>{
  const refreshed=await ok('/auth/store/refresh',{actor:null,method:'POST',body:{refreshToken:downtown.refreshToken}});
