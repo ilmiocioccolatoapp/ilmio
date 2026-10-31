@@ -12,7 +12,6 @@ jest.mock('../services/api', () => ({
   }
 }));
 
-const organizations = [{ id: 'org-1', name: 'Il Mio Holdings' }];
 const brands = [
   { id: 'brand-1', orgId: 'org-1', name: 'Il Mio Cioccolato', slug: 'ilmio', currency: 'AED', timezone: 'Asia/Dubai', status: 'active' },
   { id: 'brand-2', orgId: 'org-1', name: 'Coffee Beans World', slug: 'cbw', currency: 'AED', timezone: 'Asia/Dubai', status: 'active' }
@@ -40,7 +39,7 @@ beforeEach(async () => {
   document.body.appendChild(element);
   root = createRoot(element);
   await flush(() => root.render(
-    <BrandProvisioning organizations={organizations} brands={brands} onChanged={jest.fn()} />
+    <BrandProvisioning brands={brands} onChanged={jest.fn()} />
   ));
 });
 
@@ -49,16 +48,16 @@ afterEach(async () => {
   element.remove();
 });
 
-test('brand management lists brand cards with brand codes and owner', () => {
+test('brand management lists brand cards without organization terminology', () => {
   expect(element.textContent).toContain('Il Mio Cioccolato');
   expect(element.textContent).toContain('Coffee Beans World');
   expect(element.textContent).toContain('ilmio');
   expect(element.textContent).toContain('cbw');
-  expect(element.textContent).toContain('Il Mio Holdings');
+  expect(element.textContent).not.toContain('Organization');
   expect(element.querySelectorAll('.brand-card')).toHaveLength(2);
 });
 
-test('adding a brand sends the selected owner organization', async () => {
+test('adding a brand does not ask for or send an owner organization', async () => {
   platformService.post.mockResolvedValue({
     id: 'brand-3',
     orgId: 'org-1',
@@ -70,13 +69,13 @@ test('adding a brand sends the selected owner organization', async () => {
   });
   await flush(() => button('+ Add brand').click());
   const dialog = element.querySelector('[role="dialog"]');
+  expect(dialog.textContent).not.toContain('Organization');
   const name = dialog.querySelector('input');
   await setValue(name, 'New Cafe');
   const codeInput = dialog.querySelectorAll('input')[1];
   await setValue(codeInput, 'new-cafe');
   await flush(() => dialog.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
   expect(platformService.post).toHaveBeenCalledWith('/brands', expect.objectContaining({
-    orgId: 'org-1',
     name: 'New Cafe',
     slug: 'new-cafe'
   }));

@@ -69,8 +69,8 @@ function App(){
  let content;
  if(!canCatalog&&!canManage)content=<div className="page-container"><h2>Access unavailable</h2><p>Your account has no active workspace permissions.</p></div>;
  else if(adminUser.isPlatformAdmin&&visibleTab==='dashboard')content=<PlatformDashboard onOpenStore={openStore}/>;
- else if(adminUser.isPlatformAdmin&&visibleTab==='brands')content=<BrandProvisioning organizations={organizations} brands={brands} onChanged={reload}/>;
- else if(adminUser.isPlatformAdmin&&visibleTab==='stores'&&!selectedStore)content=<SuperAdminStores organizations={organizations} brands={brands} onOpenStore={store=>openStore(store)}/>;
+ else if(adminUser.isPlatformAdmin&&visibleTab==='brands')content=<BrandProvisioning brands={brands} onChanged={reload}/>;
+ else if(adminUser.isPlatformAdmin&&visibleTab==='stores'&&!selectedStore)content=<SuperAdminStores brands={brands} onOpenStore={store=>openStore(store)}/>;
  else if(adminUser.isPlatformAdmin&&visibleTab==='stores'&&selectedStore)content=<SuperAdminStoreWorkspace store={selectedStore} brands={brands} assignments={assignments} onStoreUpdated={setSelectedStore} onBack={()=>setSelectedStore(null)} onEditProduct={edit}/>;
  else if(visibleTab==='management')content=canManage?<Management key={selectedOrg?.id||'new'} org={selectedOrg} admin={adminUser} onChanged={reload} selectedStoreId={selectedStoreId} onSelectStore={setSelectedStoreId} canManageMenu={canCatalog} onManageMenu={manageBranchMenu}/>:null;
  else if(!canCatalog)content=canManage?<Management key={selectedOrg?.id||'new'} org={selectedOrg} admin={adminUser} onChanged={reload} selectedStoreId={selectedStoreId} onSelectStore={setSelectedStoreId} canManageMenu={canCatalog} onManageMenu={manageBranchMenu}/>:null;

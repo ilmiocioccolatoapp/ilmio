@@ -127,7 +127,7 @@ export default function SuperAdminStoreWorkspace({
       <div className="store-detail-heading">
         <div>
           <h1 className="section-title">{store.name}</h1>
-          <p>{store.ownerName} · Store ID: <strong>{store.loginCode}</strong></p>
+          <p>Store ID: <strong>{store.loginCode}</strong></p>
         </div>
         <span className="branch-card-status">{store.status}</span>
       </div>
@@ -174,7 +174,7 @@ export default function SuperAdminStoreWorkspace({
                   </label>
                   <button className="btn btn-primary" disabled={busy || !brandId}>Assign menu</button>
                 </form>
-              ) : <p>Create a brand in the Brands section before assigning a menu.</p>}
+              ) : <p>Create a brand in Brand management before assigning a menu.</p>}
             </div>
           ) : (
             <>

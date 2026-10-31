@@ -55,6 +55,12 @@ test('platform provisioning is invite-only and brand operations are role scoped'
  assert.equal((await call('/admin/stores',{actor:'ownerA'})).status,403);
  const orgBrand=(await call('/admin/brands',{actor:'ownerA',method:'POST',body:{orgId:'org-a',name:'Forbidden Brand',slug:'forbidden'}}));assert.equal(orgBrand.status,403);
  const created=await ok('/admin/brands',{method:'POST',body:{orgId:'org-a',name:'Provisioned Brand',slug:'provisioned'}});assert.equal(created.slug,'provisioned');
+ const organizationsBeforeBrand=await db.organization.count();
+ const standaloneBrand=await ok('/admin/brands',{method:'POST',body:{name:'Standalone Brand',slug:'standalone-brand'}});
+ assert.equal(standaloneBrand.name,'Standalone Brand');
+ assert.equal(await db.organization.count(),organizationsBeforeBrand+1);
+ const internalOwner=await db.organization.findUnique({where:{id:standaloneBrand.orgId}});
+ assert.equal(internalOwner.name,'Standalone Brand');
  assert.equal((await call('/admin/brands/brand-a/categories',{actor:'ownerA'})).status,404);
  assert.equal((await call('/admin/brands/brand-a/items',{actor:'ownerA',method:'POST',body:{name:'Not allowed'}})).status,404);
  assert.equal((await call('/admin/brands/brand-a/admins',{actor:'ownerA'})).status,403);

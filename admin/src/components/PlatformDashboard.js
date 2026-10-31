@@ -71,7 +71,7 @@ export default function PlatformDashboard({ onOpenStore }) {
                     <span className="dashboard-device-indicator is-online" aria-label="Online" />
                     <div className="dashboard-device-details">
                       <strong>{deviceLabel || 'Store tablet'}</strong>
-                      <span>{store.name} · {store.ownerName}</span>
+                      <span>{store.name}</span>
                       <small>Last check-in {new Date(lastSeenAt).toLocaleString()}</small>
                     </div>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => onOpenStore(store)}>
@@ -96,7 +96,7 @@ export default function PlatformDashboard({ onOpenStore }) {
                 {offlineStores.map(store => (
                   <button type="button" className="dashboard-offline-card" key={store.id} onClick={() => onOpenStore(store)}>
                     <span className="dashboard-device-indicator is-offline" aria-label="Offline" />
-                    <span><strong>{store.name}</strong><small>{store.ownerName}</small></span>
+                    <span><strong>{store.name}</strong></span>
                     <span className="dashboard-card-action">Manage store →</span>
                   </button>
                 ))}

@@ -206,6 +206,7 @@ test('Platform Admin has a dashboard and simple store and brand management secti
   expect(element.textContent).toContain('Front tablet');
   expect(element.textContent).toContain('Main store');
   expect(element.textContent).toContain('Second store');
+  expect(element.textContent).not.toContain('Owner');
   await flush(() => button('Brand management').click());
   expect(element.querySelector('.brand-card')).not.toBeNull();
   expect(element.textContent).toContain('Coffee Beans World');
@@ -234,6 +235,8 @@ test('Platform Admin keeps Stores top-level and can create a store from its dire
   expect(element.textContent).toContain('Select a store card to manage its menu, devices, and tablet login.');
   await flush(() => button('+ Create store').click());
   expect(element.querySelector('[role="dialog"]')).not.toBeNull();
+  expect(element.querySelector('[role="dialog"]').textContent).not.toContain('Owner');
+  expect(element.querySelectorAll('[role="dialog"] select')).toHaveLength(1);
   expect(element.textContent).toContain('Tablet Store ID');
   expect(element.querySelector('input[type="password"]').minLength).toBe(6);
   const inputs=[...element.querySelectorAll('[role="dialog"] input')];

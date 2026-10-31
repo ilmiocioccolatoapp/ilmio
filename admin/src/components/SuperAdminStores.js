@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { platformService } from '../services/api';
 
-export default function SuperAdminStores({ organizations, brands, onOpenStore }) {
+export default function SuperAdminStores({ brands, onOpenStore }) {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -53,7 +53,7 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
     return () => {
       active = false;
     };
-  }, [organizations, reloadKey]);
+  }, [reloadKey]);
 
   return (
     <div className="page-container super-admin-stores">
@@ -91,7 +91,6 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
                   <span className="store-card-title">{store.name}</span>
                   <span className={`store-card-status ${store.status === 'active' ? 'is-active' : ''}`}>{store.status}</span>
                 </span>
-                <span className="store-card-owner">{store.ownerDisplayName || store.ownerName}</span>
                 <span className="store-card-id">Tablet Store ID <strong>{store.loginCode}</strong></span>
                 <span className="store-card-brands">{store.assignments.length
                   ? store.assignments.map(assignment => assignment.brand.name).join(', ')
@@ -120,7 +119,6 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
 
       {createOpen && (
         <CreateStoreDialog
-          organizations={organizations}
           brands={brands}
           onCancel={() => setCreateOpen(false)}
           onCreated={async store => {
@@ -135,10 +133,9 @@ export default function SuperAdminStores({ organizations, brands, onOpenStore })
   );
 }
 
-function CreateStoreDialog({ organizations, brands, onCancel, onCreated }) {
+function CreateStoreDialog({ brands, onCancel, onCreated }) {
   const [values, setValues] = useState({
-    orgId: organizations[0]?.id || '',
-    brandId: brands.find(brand => brand.orgId === organizations[0]?.id)?.id || '',
+    brandId: brands[0]?.id || '',
     name: '',
     slug: '',
     loginCode: '',
@@ -153,9 +150,15 @@ function CreateStoreDialog({ organizations, brands, onCancel, onCreated }) {
     if (busy || createdStore) return;
     setBusy(true);
     setError('');
+    const selectedBrand = brands.find(brand => brand.id === values.brandId);
+    if (!selectedBrand) {
+      setError('Add a brand in Brand management before creating a store.');
+      setBusy(false);
+      return;
+    }
     let store;
     try {
-      store = await platformService.post(`/orgs/${values.orgId}/stores`, {
+      store = await platformService.post(`/orgs/${selectedBrand.orgId}/stores`, {
         name: values.name,
         slug: values.slug,
         loginCode: values.loginCode,
@@ -169,17 +172,13 @@ function CreateStoreDialog({ organizations, brands, onCancel, onCreated }) {
 
     setCreatedStore(store);
     try {
-      if (values.brandId) {
-        await platformService.post(`/orgs/${values.orgId}/brand-assignments`, {
-          storeId: store.id,
-          brandId: values.brandId
-        });
-      }
+      await platformService.post(`/orgs/${selectedBrand.orgId}/brand-assignments`, {
+        storeId: store.id,
+        brandId: selectedBrand.id
+      });
       await onCreated({ ...store, assignments: [] });
     } catch (submitError) {
-      setError(values.brandId
-        ? `Store created, but its menu assignment failed: ${submitError.error || 'Assign a brand from the store page.'}`
-        : `Store created, but it could not be opened: ${submitError.error || 'Try again.'}`);
+      setError(`Store created, but its menu assignment failed: ${submitError.error || 'Assign a brand from the store page.'}`);
     } finally {
       setBusy(false);
     }
@@ -206,29 +205,16 @@ function CreateStoreDialog({ organizations, brands, onCancel, onCreated }) {
           </div>
         )}
         {!createdStore && <>
-        {organizations.length === 0 ? (
+        {brands.length === 0 ? (
           <>
-            <p>Create an owner organization and brand in Brands before adding a store.</p>
+            <p>Add a brand in Brand management before adding a store.</p>
             <button type="button" className="btn btn-ghost" onClick={onCancel}>Close</button>
           </>
         ) : (
           <form onSubmit={submit}>
             {error && <p className="data-error" role="alert">{error}</p>}
-            <label>Owner
-              <select required value={values.orgId} onChange={event => {
-                const orgId = event.target.value;
-                setValues({
-                  ...values,
-                  orgId,
-                  brandId: brands.find(brand => brand.orgId === orgId)?.id || ''
-                });
-              }}>
-                {organizations.map(owner => <option key={owner.id} value={owner.id}>{owner.displayName || owner.name}</option>)}
-              </select>
-            </label>
-            <label>Menu brand
-              <select value={values.brandId} onChange={event => setValues({ ...values, brandId: event.target.value })}>
-                <option value="">Assign later</option>
+            <label>Brand
+              <select required value={values.brandId} onChange={event => setValues({ ...values, brandId: event.target.value })}>
                 {brands.map(brand => <option key={brand.id} value={brand.id}>{brand.name} ({brand.slug})</option>)}
               </select>
             </label>

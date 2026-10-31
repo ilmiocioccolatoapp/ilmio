@@ -96,7 +96,30 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
  admin.post('/orgs',wrap(async(req,res)=>{platformAdminScope(req.admin);const name=text(req.body.name,'Organization name');const data=await db.$transaction(async tx=>{const key=organizationNameKey(name);await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`organization-name:${key}`}))`;const existing=await tx.$queryRaw`SELECT "id" FROM "Organization" WHERE lower(regexp_replace(trim("name"), '[[:space:]]+', ' ', 'g')) = ${key} LIMIT 1`;if(existing.length)fail(409,'An organization with this name already exists. Select it or merge the duplicate organizations first.');const o=await tx.organization.create({data:{name}});await audit(tx,req.admin,{orgId:o.id},'Organization',o.id,'create');return o;});res.status(201).json({success:true,data:{...data,displayName:data.name}});}));
  admin.put('/orgs/:orgId',wrap(async(req,res)=>{await org(req);const data=await db.$transaction(async tx=>{const o=await tx.organization.update({where:{id:req.params.orgId},data:{...(req.body.name!==undefined?{name:text(req.body.name,'Organization name')}:{}),...(req.body.status!==undefined?{status:status(req.body.status)}:{})}});if(req.body.status!==undefined){await tx.store.updateMany({where:{OR:[{orgId:o.id},{assignments:{some:{brand:{orgId:o.id}}}}]},data:{revision:{increment:1}}});}await audit(tx,req.admin,{orgId:o.id},'Organization',o.id,'update',{status:o.status});return o;});json(res)(data);}));
  admin.get('/brands',wrap(async(req,res)=>json(res)(await db.brand.findMany({where:brandWhere(req.admin),orderBy:{name:'asc'}}))));
- admin.post('/brands',wrap(async(req,res)=>{platformAdminScope(req.admin);const o=await db.organization.findUnique({where:{id:text(req.body.orgId,'Organization')}});if(!o||o.status!=='active')fail(404,'Organization not found.');const result=await db.$transaction(async tx=>{const b=await tx.brand.create({data:{orgId:o.id,name:text(req.body.name,'Brand name'),slug:code(req.body.slug,'Brand slug'),currency:currency(req.body.currency||'AED'),timezone:timezone(req.body.timezone||'Asia/Dubai')}});await audit(tx,req.admin,{orgId:o.id,brandId:b.id},'Brand',b.id,'create');return b;});res.status(201).json({success:true,data:result});}));
+ admin.post('/brands',wrap(async(req,res)=>{
+   platformAdminScope(req.admin);
+   const name=text(req.body.name,'Brand name');
+   const slug=code(req.body.slug,'Brand slug');
+   const data=await db.$transaction(async tx=>{
+     let owner;
+     if(req.body.orgId!==undefined){
+       owner=await tx.organization.findUnique({where:{id:text(req.body.orgId,'Organization')}});
+       if(!owner||owner.status!=='active')fail(404,'Organization not found.');
+     }else{
+       owner=await tx.organization.create({data:{name}});
+     }
+     const created=await tx.brand.create({data:{
+       orgId:owner.id,
+       name,
+       slug,
+       currency:currency(req.body.currency||'AED'),
+       timezone:timezone(req.body.timezone||'Asia/Dubai')
+     }});
+     await audit(tx,req.admin,{orgId:owner.id,brandId:created.id},'Brand',created.id,'create');
+     return created;
+   });
+   res.status(201).json({success:true,data});
+ }));
  async function platformBrand(req){platformAdminScope(req.admin);const b=await db.brand.findUnique({where:{id:req.params.brandId}});if(!b)fail(404,'Brand not found.');return b;}
  admin.post('/brands/:brandId/stores',wrap(async(req,res)=>{
    const b=await platformBrand(req);
