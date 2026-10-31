@@ -529,14 +529,45 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     ),
                   ],
                 ),
-                child: PriceText(
-                  product.price,
-                  style: const TextStyle(
-                    color: Color(AppConstants.darkBrownValue),
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                child: product.sizes.isNotEmpty
+                    ? product.startingSize == null
+                        ? const Text(
+                            'Unavailable',
+                            style: TextStyle(
+                              color: Color(AppConstants.darkBrownValue),
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'From ',
+                                style: TextStyle(
+                                  color: Color(AppConstants.darkBrownValue),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              PriceText(
+                                product.startingSize!.price,
+                                style: const TextStyle(
+                                  color: Color(AppConstants.darkBrownValue),
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          )
+                    : PriceText(
+                        product.price,
+                        style: const TextStyle(
+                          color: Color(AppConstants.darkBrownValue),
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
               ),
             ],
           ),

@@ -91,7 +91,7 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
     if (!imageFile && !imagePreview) newErrors.image = 'Image is required';
     if (!formData.description.trim()) newErrors.description = 'Description is required';
     if (!formData.ingredients.trim()) newErrors.ingredients = 'Ingredients are required';
-    if (!/^\d+(?:\.\d{0,2})?$/.test(getPriceAmount(formData.price))) {
+    if (formData.sizes.length === 0 && !/^\d+(?:\.\d{0,2})?$/.test(getPriceAmount(formData.price))) {
       newErrors.price = 'Enter a price with up to 2 decimal places';
     }
     if (formData.sizes.some(size => !size.name.trim() || !validAmount(size.priceAmount))) {
@@ -260,25 +260,31 @@ const ProductForm = ({ product, onSuccess, onCancel }) => {
           {errors.ingredients && <span className="error-message">{errors.ingredients}</span>}
         </div>
 
-        <div className="form-group">
-          <label htmlFor="price">Price *</label>
-          <div className={`price-input${errors.price ? ' error' : ''}`}>
-            <span aria-label={getPriceCurrency(formData.price) === 'AED' ? 'UAE dirhams' : 'Euros'}>
-              {getPriceCurrency(formData.price) === 'AED' ? DIRHAM_SYMBOL : getPriceCurrency(formData.price)}
-            </span>
-            <input
-              type="text"
-              inputMode="decimal"
-              id="price"
-              name="price"
-              value={getPriceAmount(formData.price)}
-              onChange={handlePriceChange}
-              aria-invalid={Boolean(errors.price)}
-              placeholder="0.00"
-            />
+        {formData.sizes.length === 0 ? (
+          <div className="form-group">
+            <label htmlFor="price">Price *</label>
+            <div className={`price-input${errors.price ? ' error' : ''}`}>
+              <span aria-label={getPriceCurrency(formData.price) === 'AED' ? 'UAE dirhams' : 'Euros'}>
+                {getPriceCurrency(formData.price) === 'AED' ? DIRHAM_SYMBOL : getPriceCurrency(formData.price)}
+              </span>
+              <input
+                type="text"
+                inputMode="decimal"
+                id="price"
+                name="price"
+                value={getPriceAmount(formData.price)}
+                onChange={handlePriceChange}
+                aria-invalid={Boolean(errors.price)}
+                placeholder="0.00"
+              />
+            </div>
+            {errors.price && <span className="error-message">{errors.price}</span>}
           </div>
-          {errors.price && <span className="error-message">{errors.price}</span>}
-        </div>
+        ) : (
+          <p className="product-size-price-note" role="status">
+            Size prices are used instead of a base price. The lowest size price is used for compatibility with older menu clients.
+          </p>
+        )}
 
         <section className="product-options-editor" aria-labelledby="product-sizes-heading">
           <div className="product-options-heading">

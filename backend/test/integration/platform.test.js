@@ -176,7 +176,9 @@ let ca,cb,pa,pb;
 test('two independent owners can reuse category codes; APIs and DB reject cross-brand attaches',async()=>{
  ca=await ok('/admin/brands/brand-a/categories',{actor:'brandA',method:'POST',body:{code:'drinks',name:'A drinks'}});
  cb=await ok('/admin/brands/brand-b/categories',{actor:'brandB',method:'POST',body:{code:'drinks',name:'B drinks'}});
- pa=await ok('/admin/brands/brand-a/items',{actor:'brandA',method:'POST',body:{name:'A cocoa',categoryId:ca.id,priceAmount:'12.50',description:'A',ingredients:'Milk',imageUrl:'https://example.test/a.png'}});
+ pa=await ok('/admin/brands/brand-a/items',{actor:'brandA',method:'POST',body:{name:'A cocoa',categoryId:ca.id,priceAmount:'99.00',sizes:[{id:'size-small',name:'Small',priceAmount:'12.50'},{id:'size-large',name:'Large',priceAmount:'18.00'}],description:'A',ingredients:'Milk',imageUrl:'https://example.test/a.png'}});
+ assert.equal(Number(pa.priceAmount),12.5);
+ assert.equal(pa.legacyPrice,'AED 12.50');
  pb=await ok('/admin/brands/brand-b/items',{actor:'brandB',method:'POST',body:{name:'B tea',categoryId:cb.id,priceAmount:'7.00',imageUrl:'https://example.test/b.png'}});
  const bad=await call('/admin/brands/brand-a/items',{actor:'brandA',method:'POST',body:{name:'Bad attach',categoryId:cb.id,priceAmount:'1.00'}});assert.equal(bad.status,400);
  await assert.rejects(()=>db.product.update({where:{id:pa.id},data:{categoryId:cb.id}}));

@@ -50,6 +50,8 @@ afterEach(async () => { await flush(() => root.unmount()); element.remove(); });
 test('tab navigation and acknowledged availability changes require no full-catalog refetch', async () => {
   await flush(() => button('Products').click());
   expect(element.textContent).toContain('Cake');
+  expect(element.querySelector('.product-price').textContent).toContain('Small:');
+  expect(element.querySelector('.product-price').textContent).not.toContain('25.00');
   expect(element.querySelector('.product-card img').getAttribute('src')).toContain('example.test/cake.jpg');
   expect(element.querySelector('.sidebar-menu button svg')).not.toBeNull();
   productService.toggleAvailability.mockResolvedValue({ data: { ...product, available: false } });
@@ -68,6 +70,8 @@ test('tab navigation and acknowledged availability changes require no full-catal
 test('product editor saves drink sizes and priced add-on groups', async () => {
   await flush(() => button('Products').click());
   await flush(() => button('Edit').click());
+  expect(element.querySelector('#price')).toBeNull();
+  expect(element.textContent).toContain('Size prices are used instead of a base price.');
   expect(element.querySelector('input[aria-label="Size 1 name"]').value).toBe('Small');
   await flush(() => button('+ Add size').click());
   const setValue=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;

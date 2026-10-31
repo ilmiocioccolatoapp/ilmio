@@ -149,7 +149,15 @@ const ProductList = ({ onEdit }) => {
                   )}
 
                   <div className="product-price">
-                    {displayPrice(product.price)}
+                    {product.sizes?.length ? (
+                      <div className="product-size-prices">
+                        {product.sizes.map(size => (
+                          <span key={size.id}>
+                            {size.name}: {displayPrice(`${product.currency || 'AED'} ${size.priceAmount}`)}
+                          </span>
+                        ))}
+                      </div>
+                    ) : displayPrice(product.price)}
                   </div>
 
                   <div className="product-actions">

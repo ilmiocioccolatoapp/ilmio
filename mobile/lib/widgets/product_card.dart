@@ -126,21 +126,35 @@ class ProductCard extends StatelessWidget {
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (product.sizes.isNotEmpty) ...[
-                                  const Text('From ',
-                                      style: TextStyle(fontSize: 11)),
-                                ],
-                                PriceText(
-                                  product.startingSize?.price ?? product.price,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                  ),
-                                ),
-                              ],
+                              children: product.sizes.isNotEmpty
+                                  ? product.startingSize == null
+                                      ? const [Text('Unavailable')]
+                                      : [
+                                          const Text('From ',
+                                              style: TextStyle(fontSize: 11)),
+                                          PriceText(
+                                            product.startingSize!.price,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w800,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                            ),
+                                          ),
+                                        ]
+                                  : [
+                                      PriceText(
+                                        product.price,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                        ),
+                                      ),
+                                    ],
                             ),
                           ),
                           const Spacer(),

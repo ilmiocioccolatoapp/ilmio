@@ -306,6 +306,12 @@ function createRouter(db,verifyIdentity,authClients=createProvisioningClients())
    const addOnGroups=normalizeAddOnGroups(body.addOnGroups??current?.addOnGroups??[],optionIds);
    if(!current || body.sizes!==undefined)d.sizes=sizes;
    if(!current || body.addOnGroups!==undefined)d.addOnGroups=addOnGroups;
+   if(sizes.length){
+     const lowestPrice=sizes.reduce((lowest,size)=>Number(size.priceAmount)<Number(lowest.priceAmount)?size:lowest);
+     d.priceAmount=lowestPrice.priceAmount;
+     d.currency=b.currency;
+     d.legacyPrice=(b.currency==='EUR'?'€':b.currency+' ')+d.priceAmount;
+   }
    return d;
  }
  admin.post('/brands/:brandId/items',wrap(async(req,res)=>res.status(201).json({success:true,data:await brandWrite(req,async(tx,b)=>{const p=await tx.product.create({data:{...await productData(tx,b,req.body),brandId:b.id},include:{category:true}});await record(tx,req,b,'Product',p.id,'create');return p;})})));

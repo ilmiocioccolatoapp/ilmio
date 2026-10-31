@@ -92,6 +92,42 @@ Future<void> disposeGallery(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('sized product card never falls back to the base price',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: SizedBox(
+        width: 300,
+        height: 320,
+        child: ProductCard(
+          product: Product(
+            id: 'sized-coffee',
+            title: 'Coffee',
+            category: 'drinks',
+            image: 'https://example.com/coffee.jpg',
+            description: 'Coffee',
+            ingredients: 'Coffee beans',
+            price: 'AED 21.00',
+            available: true,
+            sizes: const [
+              ProductSize(
+                id: 'large',
+                name: 'Large',
+                price: 'AED 18.00',
+                amount: 18,
+                available: false,
+              ),
+            ],
+            createdAt: DateTime(2026),
+            updatedAt: DateTime(2026),
+          ),
+        ),
+      ),
+    ));
+
+    expect(find.text('Unavailable'), findsOneWidget);
+    expect(find.text('\u20C3\u00A021.00'), findsNothing);
+  });
+
   testWidgets('idle slideshow fills the screen without header or categories',
       (tester) async {
     await loadGallery(tester);
@@ -107,6 +143,9 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Latte'), findsOneWidget);
+    expect(find.text('From '), findsOneWidget);
+    expect(find.text('\u20C3\u00A018.00'), findsOneWidget);
+    expect(find.text('\u20C3\u00A021.00'), findsNothing);
     await disposeGallery(tester);
   });
 
